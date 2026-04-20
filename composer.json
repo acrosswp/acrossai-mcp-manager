@@ -1,0 +1,35 @@
+{
+  "name": "acrosswp/acrossai-mcp-manager",
+  "description": "AcrossAI MCP Manager - Enable/Disable MCP Adapter Integration",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "authors": [
+    {
+      "name": "WordPress MCP Team",
+      "homepage": "https://wordpress.org"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "automattic/jetpack-autoloader": "^2.0",
+    "wordpress/mcp-adapter": ">=0.4.1"
+  },
+  "repositories": [
+    {
+      "type": "vcs",
+      "url": "https://github.com/WordPress/mcp-adapter.git"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "ACROSSAI_MCP_MANAGER\\": "src/"
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "allow-plugins": {
+      "automattic/jetpack-autoloader": true
+    }
+  }
+}

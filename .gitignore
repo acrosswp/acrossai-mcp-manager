@@ -1,0 +1,23 @@
+# IDE
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Dependencies
+vendor/
+node_modules/
+composer.lock
+
+# Build
+dist/
+build/
+
+# OS
+Thumbs.db
+.env.local
+
+# WordPress
+wp-config-local.php
