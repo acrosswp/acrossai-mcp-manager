@@ -43,13 +43,49 @@ class Settings {
 	 * @param Plugin $plugin Plugin instance.
 	 */
 	public function __construct( Plugin $plugin ) {
-		$this->plugin           = $plugin;
-		$this->app_passwords    = new ApplicationPasswords( $plugin );
+		$this->plugin        = $plugin;
+		$this->app_passwords = new ApplicationPasswords( $plugin );
 
-		// Register hooks.
+		add_action( 'admin_init', array( $this, 'handle_actions' ), 5 );
 		add_action( 'admin_menu', array( $this, 'register_menu' ), 10 );
 		add_action( 'admin_init', array( $this, 'register_settings' ), 10 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+	}
+
+	/**
+	 * Handle page actions (toggle status) before any output.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function handle_actions() {
+		// Only run on our page.
+		if ( ! isset( $_GET['page'] ) || 'acrossai_mcp_manager' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+			return;
+		}
+
+		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+
+		if ( 'toggle_status' !== $action ) {
+			return;
+		}
+
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'acrossai-mcp-manager' ) );
+		}
+
+		$server = isset( $_GET['server'] ) ? sanitize_key( $_GET['server'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+
+		check_admin_referer( 'acrossai_mcp_toggle_' . $server );
+
+		if ( 'default' === $server ) {
+			$current = (bool) get_option( 'acrossai_mcp_manager_enabled', false );
+			update_option( 'acrossai_mcp_manager_enabled', ! $current );
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=acrossai_mcp_manager&updated=1' ) );
+		exit;
 	}
 
 	/**
@@ -65,19 +101,16 @@ class Settings {
 			return;
 		}
 
-		// Enqueue CSS
 		wp_enqueue_style( 'acrossai-mcp-manager-admin', ACROSSAI_MCP_MANAGER_URL . 'assets/admin.css', array(), ACROSSAI_MCP_MANAGER_VERSION );
 
-		// Enqueue JavaScript
 		wp_enqueue_script( 'acrossai-mcp-manager-admin', ACROSSAI_MCP_MANAGER_URL . 'assets/admin.js', array( 'wp-api' ), ACROSSAI_MCP_MANAGER_VERSION, true );
 
-		// Localize script
 		wp_localize_script(
 			'acrossai-mcp-manager-admin',
 			'acrossaiMcpManagerData',
 			array(
-				'nonce' => wp_create_nonce( 'wp_rest' ),
-				'rest_url' => rest_url( 'acrossai-mcp-manager/v1/' ),
+				'nonce'        => wp_create_nonce( 'wp_rest' ),
+				'rest_url'     => rest_url( 'acrossai-mcp-manager/v1/' ),
 				'current_user' => wp_get_current_user(),
 			)
 		);
@@ -92,7 +125,7 @@ class Settings {
 	 */
 	public function register_menu() {
 		add_menu_page(
-			__( 'MCP Manager', 'acrossai-mcp-manager' ),
+			__( 'AcrossAI MCP Manager', 'acrossai-mcp-manager' ),
 			__( 'MCP Manager', 'acrossai-mcp-manager' ),
 			'manage_options',
 			'acrossai_mcp_manager',
@@ -110,7 +143,6 @@ class Settings {
 	 * @return void
 	 */
 	public function register_settings() {
-		// Register setting.
 		register_setting(
 			'acrossai_mcp_manager_settings',
 			'acrossai_mcp_manager_enabled',
@@ -124,7 +156,6 @@ class Settings {
 			)
 		);
 
-		// Add settings section.
 		add_settings_section(
 			'acrossai_mcp_manager_section',
 			__( 'MCP Adapter Settings', 'acrossai-mcp-manager' ),
@@ -134,7 +165,6 @@ class Settings {
 			'acrossai_mcp_manager_settings'
 		);
 
-		// Add enabled field.
 		add_settings_field(
 			'acrossai_mcp_manager_enabled',
 			__( 'Enable MCP Adapter', 'acrossai-mcp-manager' ),
@@ -143,41 +173,96 @@ class Settings {
 			'acrossai_mcp_manager_section'
 		);
 
-		// Show admin notice if MCP Adapter is not installed.
 		if ( ! class_exists( '\WP\MCP\Plugin' ) ) {
 			add_action( 'admin_notices', array( $this, 'render_missing_adapter_notice' ) );
 		}
 	}
 
 	/**
-	 * Render settings page.
+	 * Route between list view and edit view.
 	 *
 	 * @since 1.0.0
 	 *
 	 * @return void
 	 */
 	public function render_settings_page() {
-		// Check user capabilities.
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'acrossai-mcp-manager' ) );
 		}
 
-		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'overview'; // phpcs:ignore WordPress.Security.NonceVerification
-		$clients    = $this->app_passwords->get_clients();
+		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
+		if ( 'edit' === $action ) {
+			$this->render_edit_page();
+		} else {
+			$this->render_list_page();
+		}
+	}
+
+	/**
+	 * Render the MCP server list page (WP_List_Table).
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	private function render_list_page() {
+		$list_table = new MCPServerListTable();
+		$list_table->prepare_items();
+
+		$updated = isset( $_GET['updated'] ) && '1' === $_GET['updated']; // phpcs:ignore WordPress.Security.NonceVerification
 		?>
 		<div class="wrap acrossai-mcp-manager-wrap">
-			<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<h1 class="wp-heading-inline"><?php echo esc_html( get_admin_page_title() ); ?></h1>
+			<hr class="wp-header-end">
+
+			<?php if ( $updated ) : ?>
+				<div class="notice notice-success is-dismissible">
+					<p><?php esc_html_e( 'MCP Server status updated successfully.', 'acrossai-mcp-manager' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php settings_errors(); ?>
+
+			<form method="get">
+				<input type="hidden" name="page" value="acrossai_mcp_manager">
+				<?php $list_table->display(); ?>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the edit page for a single MCP server (tabbed UI).
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	private function render_edit_page() {
+		$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'overview'; // phpcs:ignore WordPress.Security.NonceVerification
+		$clients    = $this->app_passwords->get_clients();
+		$back_url   = admin_url( 'admin.php?page=acrossai_mcp_manager' );
+		?>
+		<div class="wrap acrossai-mcp-manager-wrap">
+			<h1>
+				<a href="<?php echo esc_url( $back_url ); ?>" class="acrossai-back-link">
+					&#8592; <?php esc_html_e( 'MCP Servers', 'acrossai-mcp-manager' ); ?>
+				</a>
+				<?php echo esc_html( get_admin_page_title() ); ?>
+			</h1>
 
 			<?php settings_errors(); ?>
 
 			<!-- Tab Navigation -->
 			<nav class="nav-tab-wrapper">
-				<a href="?page=mcp_manager&tab=overview" class="nav-tab <?php echo 'overview' === $active_tab ? 'nav-tab-active' : ''; ?>">
+				<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'acrossai_mcp_manager', 'action' => 'edit', 'tab' => 'overview' ), admin_url( 'admin.php' ) ) ); ?>"
+				   class="nav-tab <?php echo 'overview' === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Overview', 'acrossai-mcp-manager' ); ?>
 				</a>
 				<?php foreach ( $clients as $client_id => $client_data ) : ?>
-					<a href="?page=mcp_manager&tab=<?php echo esc_attr( $client_id ); ?>" class="nav-tab <?php echo $client_id === $active_tab ? 'nav-tab-active' : ''; ?>">
+					<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'acrossai_mcp_manager', 'action' => 'edit', 'tab' => $client_id ), admin_url( 'admin.php' ) ) ); ?>"
+					   class="nav-tab <?php echo $client_id === $active_tab ? 'nav-tab-active' : ''; ?>">
 						<span class="mcp-client-icon"><?php echo esc_html( $client_data['icon'] ); ?></span>
 						<?php echo esc_html( $client_data['label'] ); ?>
 					</a>
@@ -217,14 +302,14 @@ class Settings {
 				submit_button();
 				?>
 
-			<div class="notice notice-info inline">
-				<p>
-					<strong><?php esc_html_e( 'Application Passwords', 'acrossai-mcp-manager' ); ?></strong><br>
-					<?php esc_html_e( 'Passwords generated here are managed through WordPress Application Passwords. You can view, revoke, and manage all your application passwords on your ', 'acrossai-mcp-manager' ); ?>
-					<a href="<?php echo esc_url( admin_url( 'profile.php' ) ); ?>"><?php esc_html_e( 'profile page', 'acrossai-mcp-manager' ); ?></a>
-					<?php esc_html_e( ' under Account Management.', 'acrossai-mcp-manager' ); ?>
-				</p>
-			</div>
+				<div class="notice notice-info inline">
+					<p>
+						<strong><?php esc_html_e( 'Application Passwords', 'acrossai-mcp-manager' ); ?></strong><br>
+						<?php esc_html_e( 'Passwords generated here are managed through WordPress Application Passwords. You can view, revoke, and manage all your application passwords on your ', 'acrossai-mcp-manager' ); ?>
+						<a href="<?php echo esc_url( admin_url( 'profile.php' ) ); ?>"><?php esc_html_e( 'profile page', 'acrossai-mcp-manager' ); ?></a>
+						<?php esc_html_e( ' under Account Management.', 'acrossai-mcp-manager' ); ?>
+					</p>
+				</div>
 			</form>
 
 			<div class="mcp-info-box">
@@ -254,8 +339,6 @@ class Settings {
 	 * @return void
 	 */
 	private function render_client_tab( $client_id, $client_data ) {
-		$current_user = wp_get_current_user();
-		$api_url      = rest_url( 'mcp/mcp-adapter-default-server' );
 		?>
 		<div class="mcp-tab-panel">
 			<h2>
@@ -264,40 +347,39 @@ class Settings {
 			</h2>
 			<p class="description"><?php echo esc_html( $client_data['description'] ); ?></p>
 
+			<!-- Generate Password Button -->
+			<div class="password-actions">
+				<button type="button" class="button button-primary generate-app-password" data-client="<?php echo esc_attr( $client_id ); ?>">
+					<?php esc_html_e( 'Generate New Application Password', 'acrossai-mcp-manager' ); ?>
+				</button>
+				<p class="description">
+					<?php esc_html_e( 'Click to generate a new application password. Store it securely - it will only be shown once. The password will also appear in your profile page under Account Management → Application Passwords where you can manage and revoke it.', 'acrossai-mcp-manager' ); ?>
+				</p>
+			</div>
 
-		<!-- Generate Password Button -->
-		<div class="password-actions">
-			<button type="button" class="button button-primary generate-app-password" data-client="<?php echo esc_attr( $client_id ); ?>">
-				<?php esc_html_e( 'Generate New Application Password', 'acrossai-mcp-manager' ); ?>
-			</button>
-			<p class="description">
-				<?php esc_html_e( 'Click to generate a new application password. Store it securely - it will only be shown once. The password will also appear in your profile page under Account Management → Application Passwords where you can manage and revoke it.', 'acrossai-mcp-manager' ); ?>
-			</p>
-		</div>
-
-		<!-- Full Configuration JSON -->
+			<!-- Full Configuration JSON -->
 			<div class="mcp-config-json">
 				<h3><?php esc_html_e( 'Full Configuration (MCP Format)', 'acrossai-mcp-manager' ); ?></h3>
-				
+
 				<!-- Config File Location -->
 				<div style="background: #f5f5f5; padding: 10px; margin-bottom: 15px; border-radius: 3px;">
 					<p><strong><?php esc_html_e( '📁 Configuration File:', 'acrossai-mcp-manager' ); ?></strong></p>
 					<code id="config_path_<?php echo esc_attr( $client_id ); ?>" style="word-break: break-all; display: block; padding: 5px 0;">Loading...</code>
 				</div>
-				
+
 				<!-- Top-Level Key -->
 				<div style="background: #f5f5f5; padding: 10px; margin-bottom: 15px; border-radius: 3px;">
 					<p><strong><?php esc_html_e( '🔑 Top-Level Key:', 'acrossai-mcp-manager' ); ?></strong></p>
 					<code id="top_level_key_<?php echo esc_attr( $client_id ); ?>" style="color: #d74e1d; font-weight: bold;">Loading...</code>
 				</div>
-				
-				<!-- Configuration Json -->
+
+				<!-- Configuration JSON -->
 				<p style="margin-bottom: 10px;"><strong><?php esc_html_e( '📋 Full Configuration (Ready to Copy & Paste):', 'acrossai-mcp-manager' ); ?></strong></p>
 				<textarea id="config_json_<?php echo esc_attr( $client_id ); ?>" class="widefat code" rows="15" readonly style="font-family: monospace; background: #f8f8f8;"></textarea>
 				<button type="button" class="button copy-to-clipboard" data-field="config_json_<?php echo esc_attr( $client_id ); ?>" style="margin-top: 10px;">
 					<?php esc_html_e( 'Copy Configuration', 'acrossai-mcp-manager' ); ?>
 				</button>
-				
+
 				<!-- Instructions Note -->
 				<div style="background: #e7f3ff; padding: 10px; margin-top: 15px; border-left: 4px solid #0073aa; border-radius: 3px;">
 					<p><strong><?php esc_html_e( '⚠️ Important:', 'acrossai-mcp-manager' ); ?></strong></p>
@@ -321,13 +403,11 @@ class Settings {
 				</ol>
 			</div>
 		</div>
-
-
 		<?php
 	}
 
 	/**
-	 * Render enabled field.
+	 * Render the enabled/disabled checkbox field.
 	 *
 	 * @since 1.0.0
 	 *
@@ -338,18 +418,19 @@ class Settings {
 		?>
 		<input
 			type="checkbox"
-			name="mcp_manager_enabled"
+			id="acrossai_mcp_manager_enabled"
+			name="acrossai_mcp_manager_enabled"
 			value="1"
 			<?php checked( $enabled, 1 ); ?>
 		/>
-		<label for="mcp_manager_enabled">
+		<label for="acrossai_mcp_manager_enabled">
 			<?php esc_html_e( 'Enable MCP Adapter integration', 'acrossai-mcp-manager' ); ?>
 		</label>
 		<?php
 	}
 
 	/**
-	 * Render missing adapter notice.
+	 * Render missing adapter admin notice.
 	 *
 	 * @since 1.0.0
 	 *
