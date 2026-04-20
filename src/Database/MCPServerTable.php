@@ -108,6 +108,11 @@ class MCPServerTable {
 		if ( get_option( self::DB_VERSION_OPTION ) !== self::DB_VERSION ) {
 			self::create_table();
 		}
+
+		// Always seed the default row if the table is empty — covers the case
+		// where the table was created but the activation hook never fired
+		// (e.g. the plugin was already active when this code was deployed).
+		self::insert_default_server();
 	}
 
 	/**
