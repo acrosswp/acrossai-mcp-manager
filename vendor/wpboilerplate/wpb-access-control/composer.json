@@ -1,0 +1,40 @@
+{
+	"name": "wpboilerplate/wpb-access-control",
+	"description": "Extensible per-resource access control library for WordPress plugins",
+	"type": "library",
+	"license": "GPL-2.0-or-later",
+	"keywords": [
+		"wordpress",
+		"access-control",
+		"authorization",
+		"roles",
+		"permissions"
+	],
+	"authors": [
+		{
+			"name": "WPBoilerplate Team",
+			"homepage": "https://github.com/WPBoilerplate"
+		}
+	],
+	"homepage": "https://github.com/WPBoilerplate/wpb-access-control",
+	"support": {
+		"issues": "https://github.com/WPBoilerplate/wpb-access-control/issues",
+		"source": "https://github.com/WPBoilerplate/wpb-access-control"
+	},
+	"require": {
+		"php": ">=7.4"
+	},
+	"autoload": {
+		"psr-4": {
+			"WPBoilerplate\\AccessControl\\": "src/"
+		}
+	},
+	"minimum-stability": "dev",
+	"prefer-stable": true,
+	"config": {
+		"platform": {
+			"php": "7.4"
+		},
+		"sort-packages": true
+	}
+}
