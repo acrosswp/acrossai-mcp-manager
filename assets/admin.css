@@ -115,6 +115,63 @@
 }
 
 /* -------------------------------------------------------------------------
+   Source badges (list table + overview tab)
+   Indicates where a server was registered from: plugin, database, theme, core
+   ------------------------------------------------------------------------- */
+.acrossai-source-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.8;
+	vertical-align: middle;
+}
+
+.acrossai-source-plugin {
+	background: #f0f6fc;
+	color: #2271b1;
+	border: 1px solid #b8d5f2;
+}
+
+.acrossai-source-database {
+	background: #f5f0fa;
+	color: #7e5c9e;
+	border: 1px solid #d5c0ea;
+}
+
+.acrossai-source-theme {
+	background: #fef8f0;
+	color: #996800;
+	border: 1px solid #f2d675;
+}
+
+.acrossai-source-core {
+	background: #f0faf4;
+	color: #007a3d;
+	border: 1px solid #b0e0c5;
+}
+
+/* MCP ability type badges (tool / resource / prompt) */
+.acrossai-source-tool {
+	background: #f0f6fc;
+	color: #2271b1;
+	border: 1px solid #b8d5f2;
+}
+
+.acrossai-source-resource {
+	background: #f5f0fa;
+	color: #7e5c9e;
+	border: 1px solid #d5c0ea;
+}
+
+.acrossai-source-prompt {
+	background: #fef8f0;
+	color: #996800;
+	border: 1px solid #f2d675;
+}
+
+/* -------------------------------------------------------------------------
    Back link in the edit-page title
    ------------------------------------------------------------------------- */
 .acrossai-back-link {
@@ -150,6 +207,103 @@
 
 .mcp-clients-list li:last-child {
 	border-bottom: none;
+}
+
+/* -------------------------------------------------------------------------
+   Danger Zone tab link — red tint in the tab nav
+   ------------------------------------------------------------------------- */
+.acrossai-tab-danger {
+	color: #d63638 !important;
+}
+
+.acrossai-tab-danger:hover,
+.acrossai-tab-danger-active {
+	color: #d63638 !important;
+	border-bottom-color: #d63638 !important;
+}
+
+/* -------------------------------------------------------------------------
+   Danger zone — delete section
+   ------------------------------------------------------------------------- */
+.acrossai-danger-zone {
+	margin-top: 32px;
+	padding: 16px 20px;
+	border: 1px solid #d63638;
+	border-radius: 4px;
+	background: #fff8f8;
+}
+
+.acrossai-danger-zone h3 {
+	margin: 0 0 8px;
+	color: #d63638;
+	font-size: 14px;
+}
+
+.acrossai-danger-zone .description {
+	margin: 0 0 12px;
+}
+
+.acrossai-btn-delete {
+	color: #d63638 !important;
+	border-color: #d63638 !important;
+	background: #fff !important;
+}
+
+.acrossai-btn-delete:hover {
+	color: #fff !important;
+	background: #d63638 !important;
+	border-color: #d63638 !important;
+}
+
+/* -------------------------------------------------------------------------
+   MCP Clients — secondary sub-tab nav
+   ------------------------------------------------------------------------- */
+.acrossai-clients-panel {
+	/* Remove the outer tab-content padding so we control spacing ourselves */
+}
+
+.acrossai-client-tabs-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 14px 0 16px;
+	border-bottom: 1px solid #c3c4c7;
+	margin-bottom: 20px;
+}
+
+.acrossai-client-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px 14px;
+	border: 1px solid #c3c4c7;
+	border-radius: 20px;
+	font-size: 13px;
+	font-weight: 500;
+	color: #50575e;
+	background: #f6f7f7;
+	text-decoration: none;
+	transition: background 0.1s, color 0.1s, border-color 0.1s;
+	line-height: 1.5;
+}
+
+.acrossai-client-tab:hover {
+	background: #fff;
+	color: #2271b1;
+	border-color: #2271b1;
+	text-decoration: none;
+}
+
+.acrossai-client-tab-active,
+.acrossai-client-tab-active:hover {
+	background: #2271b1;
+	color: #fff;
+	border-color: #2271b1;
+}
+
+.acrossai-client-tab-icon {
+	font-size: 14px;
+	line-height: 1;
 }
 
 /* -------------------------------------------------------------------------

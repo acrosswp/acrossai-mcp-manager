@@ -51,6 +51,7 @@ class MCPServerListTable extends \WP_List_Table {
 		return array(
 			'name'        => __( 'Server Name', 'acrossai-mcp-manager' ),
 			'description' => __( 'Description', 'acrossai-mcp-manager' ),
+			'source'      => __( 'Source', 'acrossai-mcp-manager' ),
 			'status'      => __( 'Status', 'acrossai-mcp-manager' ),
 			'actions'     => __( 'Actions', 'acrossai-mcp-manager' ),
 		);
@@ -71,10 +72,11 @@ class MCPServerListTable extends \WP_List_Table {
 		$this->items = array_map(
 			function ( $row ) {
 				return array(
-					'id'          => (int) $row['id'],
-					'name'        => $row['server_name'],
-					'description' => $row['description'],
-					'enabled'     => (bool) $row['is_enabled'],
+					'id'              => (int) $row['id'],
+					'name'            => $row['server_name'],
+					'description'     => $row['description'],
+					'enabled'         => (bool) $row['is_enabled'],
+					'registered_from' => $row['registered_from'] ?? 'plugin',
 				);
 			},
 			$rows
@@ -125,12 +127,57 @@ class MCPServerListTable extends \WP_List_Table {
 			),
 		);
 
+		// Delete action only available for database-registered servers.
+		if ( 'database' === $item['registered_from'] ) {
+			$delete_url = add_query_arg(
+				array(
+					'page'     => 'acrossai_mcp_manager',
+					'action'   => 'delete',
+					'server'   => $item['id'],
+					'_wpnonce' => wp_create_nonce( 'acrossai_mcp_delete_' . $item['id'] ),
+				),
+				admin_url( 'admin.php' )
+			);
+
+			$row_actions['delete'] = sprintf(
+				'<a href="%s" class="submitdelete" onclick="return confirm(\'%s\')">%s</a>',
+				esc_url( $delete_url ),
+				esc_js( __( 'Are you sure you want to delete this server? This cannot be undone.', 'acrossai-mcp-manager' ) ),
+				__( 'Delete', 'acrossai-mcp-manager' )
+			);
+		}
+
 		return sprintf(
 			'<strong><a class="row-title" href="%s">%s</a></strong>%s',
 			esc_url( $edit_url ),
 			esc_html( $item['name'] ),
 			$this->row_actions( $row_actions )
 		);
+	}
+
+	/**
+	 * Render the source column — badge showing where the server was registered from.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param array $item Row data.
+	 *
+	 * @return string
+	 */
+	public function column_source( $item ) {
+		$source = $item['registered_from'] ?? 'plugin';
+
+		$labels = array(
+			'plugin'   => __( 'Plugin', 'acrossai-mcp-manager' ),
+			'database' => __( 'Database', 'acrossai-mcp-manager' ),
+			'theme'    => __( 'Theme', 'acrossai-mcp-manager' ),
+			'core'     => __( 'Core', 'acrossai-mcp-manager' ),
+		);
+
+		$label = isset( $labels[ $source ] ) ? $labels[ $source ] : esc_html( $source );
+		$class = 'acrossai-source-badge acrossai-source-' . sanitize_html_class( $source );
+
+		return sprintf( '<span class="%s">%s</span>', esc_attr( $class ), esc_html( $label ) );
 	}
 
 	/**

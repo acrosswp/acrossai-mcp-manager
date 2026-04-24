@@ -114,7 +114,9 @@
 		clientIdFromPasswordName( name ) {
 			const map = {
 				'VS Code'            : 'vscode',
+				'Claude Code'        : 'claude-code',
 				'Claude'             : 'claude',
+				'GitHub Copilot'     : 'copilot',
 				'GitHub Codex'       : 'codex',
 				'OpenAI ChatGPT Codex': 'chatgpt',
 				'Custom Client'      : 'custom',

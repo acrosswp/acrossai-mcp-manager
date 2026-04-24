@@ -54,12 +54,28 @@ class ApplicationPasswords {
 			'config_file'   => '~/Library/Application Support/Claude/claude_desktop_config.json',
 			'server_name'   => 'mcp-wordpress',
 		),
+		'claude-code' => array(
+			'label'         => 'Claude Code',
+			'description'   => 'Anthropic Claude Code CLI',
+			'icon'          => '⌨️',
+			'top_level_key' => 'mcpServers',
+			'config_file'   => '~/.claude.json',
+			'server_name'   => 'mcp-wordpress',
+		),
 		'vscode' => array(
 			'label'         => 'VS Code',
 			'description'   => 'Visual Studio Code',
 			'icon'          => '󰨞',
 			'top_level_key' => 'servers',
 			'config_file'   => '.vscode/mcp.json',
+			'server_name'   => 'mcp-wordpress',
+		),
+		'copilot' => array(
+			'label'         => 'GitHub Copilot',
+			'description'   => 'GitHub Copilot in VS Code (user-level MCP config)',
+			'icon'          => '🐱',
+			'top_level_key' => 'servers',
+			'config_file'   => '~/.vscode/mcp.json',
 			'server_name'   => 'mcp-wordpress',
 		),
 		'codex'  => array(
@@ -348,7 +364,11 @@ class ApplicationPasswords {
 		if ( $server_id > 0 ) {
 			$server_row = MCPServerTable::get_by_id( $server_id );
 			if ( $server_row ) {
-				$server_slug = sanitize_title( $server_row['server_name'] );
+				// Use the stored server_slug (set once at creation, never changes).
+				$server_slug = ! empty( $server_row['server_slug'] )
+					? $server_row['server_slug']
+					: sanitize_title( $server_row['server_name'] );
+
 				if ( $site_name && $server_slug ) {
 					return $site_name . '-' . $server_slug;
 				}
@@ -376,9 +396,25 @@ class ApplicationPasswords {
 	 * @return array MCP server configuration array.
 	 */
 	private function generate_mcp_server_config( $username, $server_id = 0 ) {
-		// All servers currently use the same adapter endpoint.
-		// When per-server URLs are supported, derive the URL from $server_id here.
-		$mcp_api_url = rest_url( 'mcp/mcp-adapter-default-server' );
+		// Derive the MCP URL from the server row when a valid server_id is given.
+		$mcp_api_url = rest_url( 'mcp/mcp-adapter-default-server' ); // safe fallback
+
+		if ( $server_id > 0 ) {
+			$server_row = MCPServerTable::get_by_id( $server_id );
+			if ( $server_row ) {
+				$slug      = ! empty( $server_row['server_slug'] )
+					? $server_row['server_slug']
+					: sanitize_title( $server_row['server_name'] );
+				$namespace = ! empty( $server_row['server_route_namespace'] )
+					? $server_row['server_route_namespace']
+					: 'mcp';
+				$route     = ! empty( $server_row['server_route'] )
+					? $server_row['server_route']
+					: $slug;
+
+				$mcp_api_url = rest_url( $namespace . '/' . $route );
+			}
+		}
 
 		return array(
 			'command' => 'npx',

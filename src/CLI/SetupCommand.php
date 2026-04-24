@@ -55,6 +55,11 @@ class SetupCommand {
 			'config_file' => '~/.claude.json',
 			'top_key'     => 'mcpServers',
 		),
+		'copilot'        => array(
+			'label'       => 'GitHub Copilot',
+			'config_file' => '~/.vscode/mcp.json',
+			'top_key'     => 'servers',
+		),
 	);
 
 	// -------------------------------------------------------------------------

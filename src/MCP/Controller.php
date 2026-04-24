@@ -13,6 +13,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 use ACROSSAI_MCP_MANAGER\Database\MCPServerTable;
+use WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler;
+use WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler;
+use WP\MCP\Transport\HttpTransport;
 
 /**
  * Manages the MCP Adapter lifecycle.
@@ -51,6 +54,10 @@ class Controller {
 	/**
 	 * Boot the MCP Adapter when at least one server is enabled.
 	 *
+	 * Registers database server hook at priority 20 (after DefaultServerFactory
+	 * runs at priority 10) before calling Plugin::instance() so that our hook
+	 * is in place when mcp_adapter_init fires.
+	 *
 	 * @since 1.0.0
 	 *
 	 * @return void
@@ -67,12 +74,79 @@ class Controller {
 		}
 
 		try {
+			// Register database servers at priority 20 — after DefaultServerFactory (priority 10).
+			// Must be added before Plugin::instance() triggers the mcp_adapter_init action chain.
+			add_action( 'mcp_adapter_init', array( $this, 'register_database_servers' ), 20 );
+
 			\WP\MCP\Plugin::instance();
 			$this->adapter_status = 'running';
 		} catch ( \Exception $e ) {
 			$this->adapter_status = 'error';
 			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
 				do_action( 'acrossai_mcp_manager_adapter_init_error', $e );
+			}
+		}
+	}
+
+	/**
+	 * Boot all enabled database-registered MCP servers.
+	 *
+	 * Hooked on mcp_adapter_init at priority 20, after DefaultServerFactory (priority 10).
+	 * Each enabled row with registered_from = 'database' gets its own MCP server instance.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param \WP\MCP\Core\McpAdapter $adapter The MCP Adapter singleton instance.
+	 *
+	 * @return void
+	 */
+	public function register_database_servers( $adapter ) {
+		$servers = MCPServerTable::get_enabled_database_servers();
+
+		if ( empty( $servers ) ) {
+			return;
+		}
+
+		foreach ( $servers as $server ) {
+			$slug      = $server['server_slug'];
+			$namespace = ! empty( $server['server_route_namespace'] ) ? $server['server_route_namespace'] : 'mcp';
+			$route     = ! empty( $server['server_route'] ) ? $server['server_route'] : $slug;
+			$version   = ! empty( $server['server_version'] ) ? $server['server_version'] : 'v1.0.0';
+
+			if ( empty( $slug ) ) {
+				continue;
+			}
+
+			$result = $adapter->create_server(
+				$slug,
+				$namespace,
+				$route,
+				$server['server_name'],
+				$server['description'] ?? '',
+				$version,
+				array( HttpTransport::class ),
+				ErrorLogMcpErrorHandler::class,
+				NullMcpObservabilityHandler::class,
+				array(
+					'mcp-adapter/discover-abilities',
+					'mcp-adapter/get-ability-info',
+					'mcp-adapter/execute-ability',
+				),
+				array(),
+				array()
+			);
+
+			if ( is_wp_error( $result ) ) {
+				_doing_it_wrong(
+					__METHOD__,
+					sprintf(
+						'AcrossAI MCP Manager: Failed to create database server "%s". Error: %s (Code: %s)',
+						esc_html( $slug ),
+						esc_html( $result->get_error_message() ),
+						esc_html( (string) $result->get_error_code() )
+					),
+					'1.2.0'
+				);
 			}
 		}
 	}

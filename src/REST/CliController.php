@@ -310,12 +310,21 @@ class CliController {
 		$servers = array();
 
 		foreach ( $rows as $row ) {
+			// Use stored server_slug when available; fall back to sanitizing the name
+			// so that installations mid-migration still return a working URL.
+			$slug      = ! empty( $row['server_slug'] ) ? $row['server_slug'] : sanitize_title( $row['server_name'] );
+			$namespace = ! empty( $row['server_route_namespace'] ) ? $row['server_route_namespace'] : 'mcp';
+			$route     = ! empty( $row['server_route'] ) ? $row['server_route'] : $slug;
+
 			$servers[] = array(
-				'id'          => sanitize_title( $row['server_name'] ),
+				'id'          => $slug,
 				'name'        => $row['server_name'],
 				'description' => $row['description'],
 				'enabled'     => (bool) $row['is_enabled'],
-				'mcp_url'     => rest_url( 'mcp/mcp-adapter-default-server' ),
+				'version'     => ! empty( $row['server_version'] ) ? $row['server_version'] : 'v1.0.0',
+				'namespace'   => $namespace,
+				'route'       => $route,
+				'mcp_url'     => rest_url( $namespace . '/' . $route ),
 			);
 		}
 
