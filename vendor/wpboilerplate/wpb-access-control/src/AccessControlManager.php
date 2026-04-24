@@ -8,11 +8,24 @@
  *
  * Usage (in your plugin bootstrap)
  * ---------------------------------
+ * Minimal — rows must have keys: route_namespace, route, access_control.
+ *
  *   $manager = new AccessControlManager(
- *       // Server fetcher: callable that returns an array of resource rows.
- *       // Each row must have: server_route_namespace, server_route, server_slug,
- *       // and access_control (JSON string).
- *       function() { return MCPServerTable::get_all(); }
+ *       fn() => MyPlugin::get_resources()
+ *   );
+ *
+ * Custom row shape — pass a $row_mapper to translate your DB row structure:
+ *
+ *   $manager = new AccessControlManager(
+ *       fn() => MyTable::get_all(),
+ *       'my_plugin_access_control_providers',
+ *       function( array $row ): array {
+ *           return array(
+ *               'namespace'      => $row['ns'],
+ *               'route'          => $row['path'] ?: $row['slug'],
+ *               'access_control' => $row['ac_json'] ?? '',
+ *           );
+ *       }
  *   );
  *
  * Provider registry
@@ -66,15 +79,15 @@ class AccessControlManager {
 	/**
 	 * Callable that returns an array of resource rows when invoked.
 	 *
-	 * Each row must be an associative array with at minimum:
-	 *   'server_route_namespace' (string) — e.g. 'mcp'
-	 *   'server_route'          (string) — e.g. 'mcp-adapter-default-server'
-	 *   'server_slug'           (string) — fallback route identifier
-	 *   'access_control'        (string) — JSON or empty string
+	 * The shape of each row is determined by $row_mapper. When no mapper is
+	 * provided, rows are expected to contain:
+	 *   'route_namespace' (string) — REST namespace, e.g. 'myplugin/v1'
+	 *   'route'           (string) — REST route path, e.g. 'products'
+	 *   'access_control'  (string) — JSON config or empty string
 	 *
 	 * @var callable(): array<int, array<string, mixed>>
 	 */
-	private $server_fetcher;
+	private $resource_fetcher;
 
 	/**
 	 * WordPress filter tag used to collect provider instances.
@@ -82,6 +95,18 @@ class AccessControlManager {
 	 * @var string
 	 */
 	private $providers_filter;
+
+	/**
+	 * Optional callable that maps a raw resource row to a normalised shape.
+	 *
+	 * Signature: ( array $row ): array{ namespace: string, route: string, access_control: string }
+	 *
+	 * When null the manager reads 'route_namespace', 'route', and 'access_control'
+	 * directly from each row.
+	 *
+	 * @var callable|null
+	 */
+	private $row_mapper;
 
 	/**
 	 * Registered provider instances, keyed by provider ID.
@@ -95,14 +120,23 @@ class AccessControlManager {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param callable $server_fetcher   Callable that returns resource rows.
-	 *                                   Signature: (): array<int, array<string,mixed>>
-	 * @param string   $providers_filter WordPress filter tag for provider registration.
-	 *                                   Defaults to 'wpb_access_control_providers'.
+	 * @param callable      $resource_fetcher Callable that returns resource rows.
+	 *                                        Signature: (): array<int, array<string,mixed>>
+	 * @param string        $providers_filter WordPress filter tag for provider registration.
+	 *                                        Defaults to 'wpb_access_control_providers'.
+	 * @param callable|null $row_mapper       Optional. Maps a raw row to
+	 *                                        array{ namespace: string, route: string, access_control: string }.
+	 *                                        When null, the manager reads 'route_namespace', 'route',
+	 *                                        and 'access_control' directly from each row.
 	 */
-	public function __construct( callable $server_fetcher, string $providers_filter = 'wpb_access_control_providers' ) {
-		$this->server_fetcher   = $server_fetcher;
+	public function __construct(
+		callable $resource_fetcher,
+		string $providers_filter = 'wpb_access_control_providers',
+		?callable $row_mapper = null
+	) {
+		$this->resource_fetcher = $resource_fetcher;
 		$this->providers_filter = $providers_filter;
+		$this->row_mapper       = $row_mapper;
 
 		// Load providers immediately if init has already fired (e.g. during admin
 		// page rendering), otherwise hook for the normal request lifecycle.
@@ -209,7 +243,8 @@ class AccessControlManager {
 			return $result;
 		}
 
-		$ac_config = $this->parse_access_control( $resource['access_control'] ?? '' );
+		$mapped    = $this->map_row( $resource );
+		$ac_config = $this->parse_access_control( $mapped['access_control'] );
 
 		// Type 'everyone' or empty → allow.
 		if ( self::TYPE_EVERYONE === $ac_config['type'] || '' === $ac_config['type'] ) {
@@ -274,12 +309,13 @@ class AccessControlManager {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param array $resource Resource row with an 'access_control' key.
+	 * @param array $resource Raw resource row as returned by the fetcher.
 	 *
 	 * @return bool True when access is granted.
 	 */
 	public function current_user_can_access( array $resource ): bool {
-		$ac_config = $this->parse_access_control( $resource['access_control'] ?? '' );
+		$mapped    = $this->map_row( $resource );
+		$ac_config = $this->parse_access_control( $mapped['access_control'] );
 
 		if ( self::TYPE_EVERYONE === $ac_config['type'] || '' === $ac_config['type'] ) {
 			return true;
@@ -309,26 +345,60 @@ class AccessControlManager {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Normalise a raw resource row using the configured mapper.
+	 *
+	 * Returns an array with keys: namespace, route, access_control.
+	 * When no $row_mapper was provided the method reads 'route_namespace',
+	 * 'route', and 'access_control' directly from the row.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $row Raw resource row.
+	 *
+	 * @return array{namespace: string, route: string, access_control: string}
+	 */
+	private function map_row( array $row ): array {
+		if ( null !== $this->row_mapper ) {
+			$mapped = (array) call_user_func( $this->row_mapper, $row );
+		} else {
+			$mapped = array(
+				'namespace'      => $row['route_namespace'] ?? '',
+				'route'          => $row['route'] ?? '',
+				'access_control' => $row['access_control'] ?? '',
+			);
+		}
+
+		return array(
+			'namespace'      => (string) ( $mapped['namespace'] ?? '' ),
+			'route'          => (string) ( $mapped['route'] ?? '' ),
+			'access_control' => (string) ( $mapped['access_control'] ?? '' ),
+		);
+	}
+
+	/**
 	 * Find the resource row whose REST path matches the given route string.
 	 *
-	 * Calls the server_fetcher callable to get resource rows and compares
-	 * {namespace}/{route} against the beginning of the request route.
+	 * Normalises each row via map_row() then compares {namespace}/{route}
+	 * against the beginning of the request route.
 	 *
-	 * Returns the first matching row, or null when no resource matches.
+	 * Returns the first matching raw row, or null when no resource matches.
 	 *
 	 * @since 1.0.0
 	 *
 	 * @param string $route Request route with leading slash removed.
 	 *
-	 * @return array|null Resource row or null.
+	 * @return array|null Raw resource row or null.
 	 */
 	private function match_resource_by_route( string $route ): ?array {
-		$resources = (array) call_user_func( $this->server_fetcher );
+		$resources = (array) call_user_func( $this->resource_fetcher );
 
 		foreach ( $resources as $row ) {
-			$namespace = ! empty( $row['server_route_namespace'] ) ? $row['server_route_namespace'] : 'mcp';
-			$srv_route = ! empty( $row['server_route'] ) ? $row['server_route'] : ( $row['server_slug'] ?? '' );
-			$expected  = ltrim( $namespace . '/' . $srv_route, '/' );
+			$mapped   = $this->map_row( $row );
+			$expected = ltrim( $mapped['namespace'] . '/' . $mapped['route'], '/' );
+
+			if ( '' === $expected ) {
+				continue;
+			}
 
 			if ( $route === $expected || 0 === strpos( $route, $expected . '/' ) ) {
 				return $row;

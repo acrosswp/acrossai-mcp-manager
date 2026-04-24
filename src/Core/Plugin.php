@@ -80,7 +80,16 @@ class Plugin {
 			},
 			// Custom filter tag so this plugin's providers don't collide
 			// with other plugins using the same wpb-access-control library.
-			'acrossai_mcp_access_control_providers'
+			'acrossai_mcp_access_control_providers',
+			// Row mapper: translates MCP server DB columns to the generic
+			// shape expected by AccessControlManager (namespace, route, access_control).
+			function ( array $row ): array {
+				return array(
+					'namespace'      => ! empty( $row['server_route_namespace'] ) ? $row['server_route_namespace'] : 'mcp',
+					'route'          => ! empty( $row['server_route'] ) ? $row['server_route'] : ( $row['server_slug'] ?? '' ),
+					'access_control' => $row['access_control'] ?? '',
+				);
+			}
 		);
 
 	}
