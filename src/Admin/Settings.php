@@ -12,7 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use ACROSSAI_MCP_MANAGER\AccessControl\AccessControlManager;
+use WPBoilerplate\AccessControl\AccessControlManager;
 use ACROSSAI_MCP_MANAGER\Database\MCPServerTable;
 
 /**

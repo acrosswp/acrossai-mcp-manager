@@ -8,7 +8,7 @@
 
 namespace ACROSSAI_MCP_MANAGER\Core;
 
-use ACROSSAI_MCP_MANAGER\AccessControl\AccessControlManager;
+use WPBoilerplate\AccessControl\AccessControlManager;
 use ACROSSAI_MCP_MANAGER\Admin\Settings;
 use ACROSSAI_MCP_MANAGER\CLI\SetupCommand;
 use ACROSSAI_MCP_MANAGER\Frontend\FrontendAuth;
@@ -74,7 +74,15 @@ class Plugin {
 		$this->controller      = new Controller();
 		$this->cli_controller  = new CliController();
 		$this->frontend_auth   = new FrontendAuth();
-		$this->access_control  = new AccessControlManager();
+		$this->access_control  = new AccessControlManager(
+			// Fetcher: returns all server rows used to match REST routes.
+			function () {
+				return \ACROSSAI_MCP_MANAGER\Database\MCPServerTable::get_all();
+			},
+			// Custom filter tag so this plugin's providers don't collide
+			// with other plugins using the same wpb-access-control library.
+			'acrossai_mcp_access_control_providers'
+		);
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
 			\WP_CLI::add_command( 'acrossai-mcp', SetupCommand::class );

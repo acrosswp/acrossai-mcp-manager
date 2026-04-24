@@ -14,6 +14,10 @@ return array(
 		'version' => '0.5.0.0',
 		'path'    => array( $vendorDir . '/wordpress/mcp-adapter/includes' )
 	),
+	'WPBoilerplate\\AccessControl\\' => array(
+		'version' => 'dev-main',
+		'path'    => array( $vendorDir . '/wpboilerplate/wpb-access-control/src' )
+	),
 	'Automattic\\Jetpack\\Autoloader\\' => array(
 		'version' => '2.12.0',
 		'path'    => array( $vendorDir . '/automattic/jetpack-autoloader/src' )

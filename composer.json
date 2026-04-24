@@ -12,12 +12,17 @@
   "require": {
     "php": ">=7.4",
     "automattic/jetpack-autoloader": "^2.0",
-    "wordpress/mcp-adapter": ">=0.4.1"
+    "wordpress/mcp-adapter": ">=0.4.1",
+    "wpboilerplate/wpb-access-control": "dev-main"
   },
   "repositories": [
     {
       "type": "vcs",
       "url": "https://github.com/WordPress/mcp-adapter.git"
+    },
+    {
+      "type": "vcs",
+      "url": "https://github.com/WPBoilerplate/wpb-access-control.git"
     }
   ],
   "autoload": {

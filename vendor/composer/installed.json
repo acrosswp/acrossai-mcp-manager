@@ -218,6 +218,57 @@
                 "source": "https://github.com/WordPress/php-mcp-schema/tree/v0.1.1"
             },
             "install-path": "../wordpress/php-mcp-schema"
+        },
+        {
+            "name": "wpboilerplate/wpb-access-control",
+            "version": "dev-main",
+            "version_normalized": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "git@github.com:WPBoilerplate/wpb-access-control.git",
+                "reference": "3272d18526476897cb678e926ca929687a0b9f2f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/3272d18526476897cb678e926ca929687a0b9f2f",
+                "reference": "3272d18526476897cb678e926ca929687a0b9f2f",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.4"
+            },
+            "time": "2026-04-24T07:20:30+00:00",
+            "default-branch": true,
+            "type": "library",
+            "installation-source": "source",
+            "autoload": {
+                "psr-4": {
+                    "WPBoilerplate\\AccessControl\\": "src/"
+                }
+            },
+            "license": [
+                "GPL-2.0-or-later"
+            ],
+            "authors": [
+                {
+                    "name": "WPBoilerplate Team",
+                    "homepage": "https://github.com/WPBoilerplate"
+                }
+            ],
+            "description": "Extensible per-resource access control library for WordPress plugins",
+            "homepage": "https://github.com/WPBoilerplate/wpb-access-control",
+            "keywords": [
+                "access-control",
+                "authorization",
+                "permissions",
+                "roles",
+                "wordpress"
+            ],
+            "support": {
+                "issues": "https://github.com/WPBoilerplate/wpb-access-control/issues",
+                "source": "https://github.com/WPBoilerplate/wpb-access-control"
+            },
+            "install-path": "../wpboilerplate/wpb-access-control"
         }
     ],
     "dev": true,

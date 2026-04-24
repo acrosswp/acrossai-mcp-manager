@@ -11,6 +11,7 @@ class ComposerStaticInit78d47bad24c2e5d7b4e3841b5c8074c6
         array (
             'WP\\McpSchema\\' => 13,
             'WP\\MCP\\' => 7,
+            'WPBoilerplate\\AccessControl\\' => 28,
         ),
         'A' => 
         array (
@@ -27,6 +28,10 @@ class ComposerStaticInit78d47bad24c2e5d7b4e3841b5c8074c6
         'WP\\MCP\\' => 
         array (
             0 => __DIR__ . '/..' . '/wordpress/mcp-adapter/includes',
+        ),
+        'WPBoilerplate\\AccessControl\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/wpboilerplate/wpb-access-control/src',
         ),
         'Automattic\\Jetpack\\Autoloader\\' => 
         array (

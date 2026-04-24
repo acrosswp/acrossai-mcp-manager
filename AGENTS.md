@@ -74,16 +74,9 @@ src/
   MCP/
     Controller.php             Bridges WP to the wordpress/mcp-adapter package.
 
-  AccessControl/
-    AbstractProvider.php       Abstract base every provider must extend.
-                               Defines: get_id(), get_label(), get_options(), user_has_access(), is_available().
-    WpRoleProvider.php         Built-in provider: restricts by WordPress user role.
-                               get_options() returns all editable roles except Administrator.
-                               user_has_access() checks $user->roles against $selected_options.
-    AccessControlManager.php   Registry + REST enforcer.
-                               Loads providers via `acrossai_mcp_access_control_providers` filter.
-                               Hooks rest_pre_dispatch at priority 10 to gate MCP routes.
-                               Access logic: admin always passes → everyone type passes → provider check.
+  [AccessControl classes live in the wpboilerplate/wpb-access-control composer package]
+  [Installed at: vendor/wpboilerplate/wpb-access-control/src/]
+  [Namespace: WPBoilerplate\AccessControl\]
 
 assets/
   admin.css                   Styles for all admin pages.
@@ -352,16 +345,25 @@ All read methods use the `acrossai_mcp` object-cache group. Write methods (`togg
 
 Per-server access control restricts which WordPress users may call a server's MCP REST endpoint. The feature is implemented in the `ACROSSAI_MCP_MANAGER\AccessControl` namespace and is entirely independent of the BuddyBoss Platform Pro plugin (which was used as a reference for the architecture only).
 
-### Architecture
+### Package
+
+`wpboilerplate/wpb-access-control` — `github.com/WPBoilerplate/wpb-access-control`
+
+Installed at `vendor/wpboilerplate/wpb-access-control/src/`. Namespace: `WPBoilerplate\AccessControl`.
 
 ```
 AbstractProvider          — abstract base; every provider extends this
 WpRoleProvider            — built-in provider for WordPress user roles
-AccessControlManager      — registry + REST enforcer
+AccessControlManager      — registry + REST enforcer; storage-agnostic via callable
 ```
 
-The manager is instantiated in `Plugin::__construct()` and registers two hooks:
-- `init` (priority 5) — loads provider instances via filter
+The manager is instantiated in `Plugin::__construct()` with two arguments:
+1. A `$server_fetcher` callable: `fn() => MCPServerTable::get_all()` — decouples storage.
+2. A custom filter tag `'acrossai_mcp_access_control_providers'` — avoids collisions when
+   multiple plugins use the same wpb-access-control library.
+
+It registers two hooks automatically:
+- `init` (priority 5) — loads provider instances via filter (or immediately if init already fired)
 - `rest_pre_dispatch` (priority 10) — enforces access on every MCP REST request
 
 ### Provider contract (`AbstractProvider`)
@@ -377,11 +379,16 @@ The manager is instantiated in `Plugin::__construct()` and registers two hooks:
 ### Registering a custom provider
 
 ```php
-add_filter( 'acrossai_mcp_access_control_providers', function( $providers ) {
+// Use the plugin-specific filter tag (not the library default 'wpb_access_control_providers').
+add_filter( 'acrossai_mcp_access_control_providers', function( array $providers ) {
     $providers[] = new \My\Plugin\MyProvider();
     return $providers;
 } );
 ```
+
+The tag `'acrossai_mcp_access_control_providers'` is passed as the second constructor
+argument to `AccessControlManager` in `Plugin::__construct()`. Do not change it without
+updating both places.
 
 The filter fires on `init` at priority 5. Providers added after that point are ignored.
 
@@ -467,6 +474,6 @@ Registered clients: `openai`, `claude`, `vscode`, `codex`, `cursor`, `custom`.
 - **`mcp_url` in `/servers` response** is what the CLI uses as `WP_API_URL`. It must always be a full REST URL pointing to `mcp/mcp-adapter-default-server`. Do not change it to the site base URL.
 - **Access control defaults to "everyone"**. A missing or empty `access_control` column value is treated as `type='everyone'` by `AccessControlManager::parse_access_control()`. Pre-existing rows are never accidentally locked out.
 - **Administrators always bypass access control**. The `manage_options` capability check in `AccessControlManager::enforce_access()` is unconditional and must not be removed.
-- **Access control providers are loaded on `init` priority 5**. Providers registered after that action will be silently ignored. Third-party code must hook at priority 4 or earlier.
+- **Access control providers are loaded on `init` priority 5** (or immediately if init already fired). Providers registered after that point will be silently ignored. Third-party code must hook at priority 4 or earlier. The filter tag is `'acrossai_mcp_access_control_providers'` — NOT the library default `'wpb_access_control_providers'`.
 - **`sanitize_access_control()` must be called before every DB write**. `update_server()` already does this automatically when `access_control` is in the `$data` array. Do not bypass it.
 - **The `access_control` column is TEXT, not VARCHAR**. Never add a length constraint to it — the options array can theoretically be long for future providers.
