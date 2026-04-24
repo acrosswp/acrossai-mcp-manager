@@ -28,7 +28,6 @@ Manages MCP (Model Context Protocol) server entries stored in a custom DB table 
 - A plugin settings page (WP Settings API).
 - A frontend-hosted CLI auth page (virtual URL `/acrossai-mcp-manager/`).
 - REST endpoints consumed by the `@acrossai/mcp-manager` npm CLI tool.
-- A WP-CLI command (`wp acrossai-mcp setup`) for server-side credential generation.
 - Per-server access control — restrict which WordPress users may call a server's MCP endpoint.
 
 ---
@@ -43,7 +42,6 @@ src/
   Core/
     Plugin.php                 Singleton. Instantiates all subsystems:
                                Settings, Controller, CliController, FrontendAuth.
-                               Also registers the WP-CLI command when WP_CLI is defined.
 
   Admin/
     Settings.php               Admin menu + submenu, WP Settings API, server list/edit pages.
@@ -53,11 +51,6 @@ src/
     ApplicationPasswords.php   Manages WP Application Passwords for MCP clients.
                                Exposes REST endpoints for admin JS to call.
                                Builds the dynamic server key: {sitename}-{serverslug}.
-
-  CLI/
-    SetupCommand.php           WP-CLI command class: `wp acrossai-mcp setup`.
-                               Generates Application Passwords and writes/displays
-                               MCP client config files directly on the server.
 
   Frontend/
     FrontendAuth.php           Virtual frontend page at /acrossai-mcp-manager/.
@@ -109,7 +102,7 @@ Tabbed view per server. Tabs (in order):
 | `overview`       | Server name, description, status toggle, MCP API URL                             |
 | `npm`            | npx CLI command — gated by `acrossai_mcp_npm_login_enabled`                      |
 | `clients`        | Grouped MCP clients tab with pill sub-nav (see sub-tabs below)                   |
-| `wp-cli`         | WP-CLI setup commands with copy buttons                                          |
+| `wp-cli`         | STDIO transport commands from the mcp-adapter package                            |
 | `tools`          | Read-only list of 3 built-in MCP tools                                           |
 | `abilities`      | Read-only list of WordPress abilities (MCP-public + private)                     |
 | `access-control` | Per-server access control rules (all server types)                               |
@@ -133,14 +126,7 @@ URL format for client sub-tabs: `?tab=clients&client={client_id}`
 
 **npm tab gate**: if `acrossai_mcp_npm_login_enabled` is `false` (default), the npm tab shows a warning notice with a link to Settings instead of the command.
 
-**WP-CLI tab**: Always visible. Two sections:
-
-**Section 1 — `wp acrossai-mcp setup` (HTTP/credential generation)**
-1. Print config only: `wp acrossai-mcp setup --server={slug}`
-2. Write config files: `wp acrossai-mcp setup --server={slug} --write`
-3. With specific user: `wp acrossai-mcp setup --server={slug} --write --user=admin`
-
-**Section 2 — STDIO Transport (local / subprocess mode)**
+**WP-CLI tab**: Always visible. Shows the STDIO transport commands from the `wordpress/mcp-adapter` package.
 
 The `wordpress/mcp-adapter` package registers its own `wp mcp-adapter` command group:
 
@@ -195,10 +181,9 @@ The JSON config key written into MCP client config files follows the format:
 This format is produced by:
 - `ApplicationPasswords::build_server_key()` — used in admin client tabs
 - `Settings::render_wpcli_tab()` — used in WP-CLI tab display
-- `SetupCommand::setup()` — used in the WP-CLI command
 - The `@acrossai/mcp-manager` npm CLI (using `siteSlug` from `/health` + server `id` from `/servers`)
 
-**Never change this format** without updating all four locations above simultaneously, and bumping the npm CLI version.
+**Never change this format** without updating all three locations above simultaneously, and bumping the npm CLI version.
 
 ---
 
@@ -301,44 +286,6 @@ Constructed via `FrontendAuth::get_base_url()`. **Never** change this to `admin_
 | `acrossai_session_{token}`   | 600 s | `user_id` (int)                                                 |
 
 Auth codes are **single-use**: both transients are deleted in `auth_exchange` on success.
-
----
-
-## WP-CLI command
-
-**Registered in**: `Plugin::__construct()` — only when `defined('WP_CLI') && WP_CLI`.
-**Class**: `ACROSSAI_MCP_MANAGER\CLI\SetupCommand`
-**Command**: `wp acrossai-mcp setup`
-
-### Options
-
-| Flag              | Type    | Required | Description                                            |
-|-------------------|---------|----------|--------------------------------------------------------|
-| `--server=<slug>` | string  | No       | Server slug. Prompted interactively if omitted.        |
-| `--write`         | flag    | No       | Write config directly to client config files.          |
-| `--format=<fmt>`  | string  | No       | `json` (default) or `table`.                           |
-
-**`--user` is a WP-CLI global flag** — it is not declared in the command's own `@option` list. Pass it as `wp acrossai-mcp setup --user=admin`. WP-CLI sets the current user context before the command runs, so `wp_get_current_user()` inside the command returns the correct user. The command errors if no user context is available.
-
-### What it does
-
-1. Resolves current WP user via `wp_get_current_user()`.
-2. Loads all servers from `MCPServerTable::get_all()`. With one server it auto-selects; with multiple it prompts interactively.
-3. Generates a WP Application Password via `WP_Application_Passwords::create_new_application_password()`.
-4. Displays the server key, MCP URL, username, and raw password.
-5. Prints JSON config blocks for: Claude Desktop, Cursor, VS Code, Claude Code.
-6. With `--write`: backs up each client's existing config file (`.bak.<timestamp>`), then merges the new server entry.
-
-### Supported clients (write targets)
-
-| ID               | Config file                                                          | JSON key structure              |
-|------------------|----------------------------------------------------------------------|---------------------------------|
-| `claude-desktop` | `~/Library/Application Support/Claude/claude_desktop_config.json`   | `{ mcpServers: { ... } }`       |
-| `cursor`         | `~/.cursor/mcp.json`                                                 | `{ mcpServers: { ... } }`       |
-| `vscode`         | `~/Library/Application Support/Code/User/settings.json`             | `{ mcp: { servers: { ... } } }` |
-| `claude-code`    | `~/.claude.json`                                                     | `{ mcpServers: { ... } }`       |
-
-A client is skipped (with a log message) if its config directory does not exist on the machine.
 
 ---
 
@@ -499,8 +446,7 @@ Registered clients: `openai`, `claude`, `vscode`, `codex`, `cursor`, `custom`.
 - **`Settings.php` has no CLI auth logic**. All CLI auth rendering and processing lives exclusively in `FrontendAuth.php`. Do not re-add it.
 - **WP Application Passwords contain spaces** (e.g. `"xxxx xxxx xxxx xxxx xxxx xxxx"`). Never trim or sanitise the password value anywhere.
 - **`CliController::approve_auth_code()`** is a static helper called by `FrontendAuth::handle_approve()`. It must remain static and side-effect-free beyond transient writes.
-- **Server key format** (`{sitename}-{serverslug}`) must stay in sync across `ApplicationPasswords`, `Settings`, `SetupCommand`, and the npm CLI. Changing it in one place without updating the others will produce mismatched config keys.
-- **`--user` is a WP-CLI global flag**. Do not declare it as a custom option in `SetupCommand`. Do not attempt to read it from `$assoc_args`; use `wp_get_current_user()` instead.
+- **Server key format** (`{sitename}-{serverslug}`) must stay in sync across `ApplicationPasswords`, `Settings::render_wpcli_tab()`, and the npm CLI. Changing it in one place without updating the others will produce mismatched config keys.
 - **Auth codes are single-use**. `auth_exchange` deletes both the auth-code and session-token transients on success. Do not attempt a second exchange with the same code.
 - **`mcp_url` in `/servers` response** is what the CLI uses as `WP_API_URL`. It must always be a full REST URL pointing to `mcp/mcp-adapter-default-server`. Do not change it to the site base URL.
 - **Access control defaults to "everyone"**. A missing or empty `access_control` column value is treated as `type='everyone'` by `AccessControlManager::parse_access_control()`. Pre-existing rows are never accidentally locked out.

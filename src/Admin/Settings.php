@@ -1357,8 +1357,8 @@ class Settings {
 	/**
 	 * Render the WP-CLI tab for a server.
 	 *
-	 * Shows the wp-cli command to run locally for one-step credential generation
-	 * and optional automatic config-file writing.
+	 * Shows the STDIO transport commands from the mcp-adapter package for local
+	 * subprocess-mode connections.
 	 *
 	 * @since 1.2.0
 	 *
@@ -1368,15 +1368,8 @@ class Settings {
 	 */
 	private function render_wpcli_tab( array $server ) {
 		$server_slug  = ! empty( $server['server_slug'] ) ? $server['server_slug'] : sanitize_title( $server['server_name'] );
-		$namespace    = ! empty( $server['server_route_namespace'] ) ? $server['server_route_namespace'] : 'mcp';
-		$route        = ! empty( $server['server_route'] ) ? $server['server_route'] : $server_slug;
 		$site_slug    = sanitize_title( get_bloginfo( 'name' ) );
 		$server_key   = $site_slug ? $site_slug . '-' . $server_slug : $server_slug;
-		$mcp_url      = rest_url( $namespace . '/' . $route );
-
-		$cmd_basic      = sprintf( 'wp acrossai-mcp setup --server=%s', $server_slug );
-		$cmd_write      = sprintf( 'wp acrossai-mcp setup --server=%s --write', $server_slug );
-		$cmd_with_user  = sprintf( 'wp acrossai-mcp setup --server=%s --write --user=admin', $server_slug );
 
 		// STDIO transport commands (built into the mcp-adapter package).
 		$cmd_list  = 'wp mcp-adapter list';
@@ -1398,102 +1391,10 @@ class Settings {
 		?>
 		<div class="mcp-tab-panel">
 
-			<h2><?php esc_html_e( 'WP-CLI Setup', 'acrossai-mcp-manager' ); ?></h2>
+			<h2><?php esc_html_e( 'WP-CLI (STDIO Transport)', 'acrossai-mcp-manager' ); ?></h2>
 			<p class="description">
-				<?php esc_html_e( 'Run one of the commands below from your server\'s terminal. The command generates a WordPress Application Password and outputs (or writes) the ready-to-use MCP config for every supported client.', 'acrossai-mcp-manager' ); ?>
+				<?php esc_html_e( 'MCP clients can connect by launching WP-CLI as a subprocess instead of calling the HTTP endpoint. This is ideal for local WordPress installs — no credentials are transmitted over the network.', 'acrossai-mcp-manager' ); ?>
 			</p>
-
-			<!-- Print config only -->
-			<div class="mcp-config-json">
-				<label for="wpcli_cmd_print_<?php echo esc_attr( $server['id'] ); ?>">
-					<strong><?php esc_html_e( 'Print config (no files written)', 'acrossai-mcp-manager' ); ?></strong>
-				</label>
-				<textarea
-					id="wpcli_cmd_print_<?php echo esc_attr( $server['id'] ); ?>"
-					class="widefat code mcp-cmd"
-					rows="1"
-					readonly><?php echo esc_textarea( $cmd_basic ); ?></textarea>
-				<button
-					type="button"
-					class="button copy-to-clipboard"
-					data-field="wpcli_cmd_print_<?php echo esc_attr( $server['id'] ); ?>">
-					<?php esc_html_e( 'Copy', 'acrossai-mcp-manager' ); ?>
-				</button>
-			</div>
-
-			<!-- Write config files automatically -->
-			<div class="mcp-config-json" style="margin-top:16px;">
-				<label for="wpcli_cmd_write_<?php echo esc_attr( $server['id'] ); ?>">
-					<strong><?php esc_html_e( 'Generate credentials and write config files', 'acrossai-mcp-manager' ); ?></strong>
-				</label>
-				<textarea
-					id="wpcli_cmd_write_<?php echo esc_attr( $server['id'] ); ?>"
-					class="widefat code mcp-cmd"
-					rows="1"
-					readonly><?php echo esc_textarea( $cmd_write ); ?></textarea>
-				<button
-					type="button"
-					class="button copy-to-clipboard"
-					data-field="wpcli_cmd_write_<?php echo esc_attr( $server['id'] ); ?>">
-					<?php esc_html_e( 'Copy', 'acrossai-mcp-manager' ); ?>
-				</button>
-			</div>
-
-			<!-- Optional --user flag -->
-			<div class="mcp-config-json" style="margin-top:16px;">
-				<label for="wpcli_cmd_user_<?php echo esc_attr( $server['id'] ); ?>">
-					<strong><?php esc_html_e( 'Specify a WordPress user (optional)', 'acrossai-mcp-manager' ); ?></strong>
-				</label>
-				<p class="description" style="margin-bottom:6px;">
-					<?php esc_html_e( 'By default WP-CLI runs as the OS user. If the Application Password should belong to a specific WordPress account, append the global --user flag:', 'acrossai-mcp-manager' ); ?>
-				</p>
-				<textarea
-					id="wpcli_cmd_user_<?php echo esc_attr( $server['id'] ); ?>"
-					class="widefat code mcp-cmd"
-					rows="1"
-					readonly><?php echo esc_textarea( $cmd_with_user ); ?></textarea>
-				<button
-					type="button"
-					class="button copy-to-clipboard"
-					data-field="wpcli_cmd_user_<?php echo esc_attr( $server['id'] ); ?>">
-					<?php esc_html_e( 'Copy', 'acrossai-mcp-manager' ); ?>
-				</button>
-			</div>
-
-			<!-- Details table -->
-			<table class="form-table" role="presentation" style="margin-top:16px;">
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Server slug', 'acrossai-mcp-manager' ); ?></th>
-					<td><code><?php echo esc_html( $server_slug ); ?></code></td>
-				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'Config key', 'acrossai-mcp-manager' ); ?></th>
-					<td><code><?php echo esc_html( $server_key ); ?></code></td>
-				</tr>
-				<tr>
-					<th scope="row"><?php esc_html_e( 'MCP URL', 'acrossai-mcp-manager' ); ?></th>
-					<td><code><?php echo esc_html( $mcp_url ); ?></code></td>
-				</tr>
-			</table>
-
-			<!-- What --write does -->
-			<div class="notice notice-info inline" style="margin-top:16px;">
-				<p>
-					<strong><?php esc_html_e( 'What --write does:', 'acrossai-mcp-manager' ); ?></strong>
-					<?php esc_html_e( 'Detects Claude Desktop, Cursor, VS Code, and Claude Code config files on the machine and merges the new entry directly. A .bak backup is created before each file is modified.', 'acrossai-mcp-manager' ); ?>
-				</p>
-				<p>
-					<?php
-					printf(
-						/* translators: %s: link to WP-CLI site */
-						wp_kses_post( __( 'Requires <a href="https://wp-cli.org" target="_blank" rel="noopener">WP-CLI</a> to be installed on the server.', 'acrossai-mcp-manager' ) )
-					);
-					?>
-				</p>
-			</div>
-
-			<!-- ── STDIO Transport ───────────────────────────────────────────────── -->
-			<hr style="margin:28px 0 20px;">
 
 			<h3><?php esc_html_e( 'STDIO Transport (Local / Subprocess Mode)', 'acrossai-mcp-manager' ); ?></h3>
 			<p class="description">

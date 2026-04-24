@@ -10,7 +10,6 @@ namespace ACROSSAI_MCP_MANAGER\Core;
 
 use WPBoilerplate\AccessControl\AccessControlManager;
 use ACROSSAI_MCP_MANAGER\Admin\Settings;
-use ACROSSAI_MCP_MANAGER\CLI\SetupCommand;
 use ACROSSAI_MCP_MANAGER\Frontend\FrontendAuth;
 use ACROSSAI_MCP_MANAGER\MCP\Controller;
 use ACROSSAI_MCP_MANAGER\REST\CliController;
@@ -84,9 +83,6 @@ class Plugin {
 			'acrossai_mcp_access_control_providers'
 		);
 
-		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			\WP_CLI::add_command( 'acrossai-mcp', SetupCommand::class );
-		}
 	}
 
 	/**
