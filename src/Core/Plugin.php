@@ -96,6 +96,21 @@ class Plugin {
 	}
 
 	/**
+	 * Return the access control manager instance.
+	 *
+	 * Used by Settings::render_access_control_tab() so that it reuses the
+	 * already-bootstrapped manager (providers loaded) rather than creating a
+	 * fresh instance after `init` has fired.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return AccessControlManager
+	 */
+	public function get_access_control_manager(): AccessControlManager {
+		return $this->access_control;
+	}
+
+	/**
 	 * Return the plugin URL.
 	 *
 	 * @since 1.0.0

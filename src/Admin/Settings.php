@@ -1750,8 +1750,10 @@ class Settings {
 			}
 		}
 
-		// Collect registered providers.
-		$manager   = new AccessControlManager();
+		// Reuse the already-bootstrapped manager from the Plugin singleton.
+		// Creating a new instance here would miss providers because init has
+		// already fired by the time the admin page renders.
+		$manager   = \ACROSSAI_MCP_MANAGER\Core\Plugin::instance()->get_access_control_manager();
 		$providers = $manager->get_providers();
 
 		$form_action = add_query_arg(
