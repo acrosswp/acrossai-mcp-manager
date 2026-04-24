@@ -38,15 +38,15 @@ class ApplicationPasswords {
 	 * @var array<string,array>
 	 */
 	private $clients = array(
-		'vscode'  => array(
-			'label'         => 'VS Code',
-			'description'   => 'Visual Studio Code with Copilot',
-			'icon'          => '󰨞',
+		'openai' => array(
+			'label'         => 'OpenAI',
+			'description'   => 'OpenAI ChatGPT Desktop App',
+			'icon'          => '🧠',
 			'top_level_key' => 'servers',
-			'config_file'   => '~/.config/Code/User/globalStorage/Copilot.copilot-chat/mcp.json',
+			'config_file'   => '~/.config/chatgpt/config.json',
 			'server_name'   => 'mcp-wordpress',
 		),
-		'claude'  => array(
+		'claude' => array(
 			'label'         => 'Claude',
 			'description'   => 'Anthropic Claude Desktop App',
 			'icon'          => '🤖',
@@ -54,23 +54,31 @@ class ApplicationPasswords {
 			'config_file'   => '~/Library/Application Support/Claude/claude_desktop_config.json',
 			'server_name'   => 'mcp-wordpress',
 		),
-		'codex'   => array(
-			'label'         => 'GitHub Codex',
-			'description'   => 'GitHub Copilot & Codex Integration',
+		'vscode' => array(
+			'label'         => 'VS Code',
+			'description'   => 'Visual Studio Code',
+			'icon'          => '󰨞',
+			'top_level_key' => 'servers',
+			'config_file'   => '.vscode/mcp.json',
+			'server_name'   => 'mcp-wordpress',
+		),
+		'codex'  => array(
+			'label'         => 'Codex',
+			'description'   => 'OpenAI Codex CLI',
 			'icon'          => '🐙',
-			'top_level_key' => 'servers',
-			'config_file'   => '~/.gh-copilot/config.json',
+			'top_level_key' => 'mcp',
+			'config_file'   => '~/.codex/config.toml',
 			'server_name'   => 'mcp-wordpress',
 		),
-		'chatgpt' => array(
-			'label'         => 'OpenAI ChatGPT Codex',
-			'description'   => 'OpenAI ChatGPT with Code Interpreter',
-			'icon'          => '🧠',
-			'top_level_key' => 'servers',
-			'config_file'   => '~/.config/chatgpt/config.json',
+		'cursor' => array(
+			'label'         => 'Cursor',
+			'description'   => 'Cursor AI Code Editor',
+			'icon'          => '⚡',
+			'top_level_key' => 'mcpServers',
+			'config_file'   => '~/.cursor/mcp.json',
 			'server_name'   => 'mcp-wordpress',
 		),
-		'custom'  => array(
+		'custom' => array(
 			'label'         => 'Custom Client',
 			'description'   => 'Custom MCP Client Implementation',
 			'icon'          => '⚙️',
@@ -258,7 +266,7 @@ class ApplicationPasswords {
 		$current_user  = wp_get_current_user();
 		$mcp_config    = $this->generate_mcp_server_config( $current_user->user_login, $server_id );
 		$top_level_key = $this->clients[ $client ]['top_level_key'];
-		$server_name   = $this->clients[ $client ]['server_name'];
+		$server_name   = $this->build_server_key( $server_id );
 
 		$full_config = array(
 			$top_level_key => array(
@@ -321,6 +329,37 @@ class ApplicationPasswords {
 	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
+
+	/**
+	 * Build the JSON config key for a server: {sitename}-{serverslug}.
+	 *
+	 * Matches the key format used by the @acrossai/mcp-manager CLI tool so that
+	 * manually-pasted configs and CLI-generated configs share the same key.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param int $server_id DB ID of the server being configured.
+	 *
+	 * @return string Slugified key, e.g. "wordpress-default-mcp-server".
+	 */
+	private function build_server_key( $server_id ) {
+		$site_name = sanitize_title( get_bloginfo( 'name' ) );
+
+		if ( $server_id > 0 ) {
+			$server_row = MCPServerTable::get_by_id( $server_id );
+			if ( $server_row ) {
+				$server_slug = sanitize_title( $server_row['server_name'] );
+				if ( $site_name && $server_slug ) {
+					return $site_name . '-' . $server_slug;
+				}
+				if ( $server_slug ) {
+					return $server_slug;
+				}
+			}
+		}
+
+		return $site_name ?: 'mcp-wordpress';
+	}
 
 	/**
 	 * Build the inner MCP server configuration block.

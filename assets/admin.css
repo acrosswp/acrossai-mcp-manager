@@ -64,6 +64,19 @@
 	box-sizing: border-box;
 }
 
+/* Single-line command variant — shrinks to fit one line of content */
+.mcp-config-json textarea.mcp-cmd {
+	min-height: 0;
+	height: auto;
+	rows: 1;
+	resize: none;
+	white-space: nowrap;
+	overflow-x: auto;
+	overflow-y: hidden;
+	padding: 8px 10px;
+	line-height: 1.5;
+}
+
 /* -------------------------------------------------------------------------
    Password actions area
    ------------------------------------------------------------------------- */

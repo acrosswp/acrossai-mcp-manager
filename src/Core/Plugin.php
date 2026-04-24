@@ -9,6 +9,8 @@
 namespace ACROSSAI_MCP_MANAGER\Core;
 
 use ACROSSAI_MCP_MANAGER\Admin\Settings;
+use ACROSSAI_MCP_MANAGER\CLI\SetupCommand;
+use ACROSSAI_MCP_MANAGER\Frontend\FrontendAuth;
 use ACROSSAI_MCP_MANAGER\MCP\Controller;
 use ACROSSAI_MCP_MANAGER\REST\CliController;
 
@@ -48,14 +50,26 @@ class Plugin {
 	private $cli_controller;
 
 	/**
+	 * Frontend auth page instance.
+	 *
+	 * @var FrontendAuth
+	 */
+	private $frontend_auth;
+
+	/**
 	 * Private constructor — use instance() instead.
 	 *
 	 * @since 1.0.0
 	 */
 	private function __construct() {
-		$this->settings        = new Settings();
-		$this->controller      = new Controller();
-		$this->cli_controller  = new CliController();
+		$this->settings       = new Settings();
+		$this->controller     = new Controller();
+		$this->cli_controller = new CliController();
+		$this->frontend_auth  = new FrontendAuth();
+
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			\WP_CLI::add_command( 'acrossai-mcp', SetupCommand::class );
+		}
 	}
 
 	/**

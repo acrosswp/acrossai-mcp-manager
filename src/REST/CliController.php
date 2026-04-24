@@ -176,6 +176,7 @@ class CliController {
 				'plugin_installed' => true,
 				'plugin_active'    => true,
 				'version'          => ACROSSAI_MCP_MANAGER_VERSION,
+				'site_slug'        => sanitize_title( get_bloginfo( 'name' ) ),
 			)
 		);
 	}
@@ -195,12 +196,11 @@ class CliController {
 
 		$auth_url = add_query_arg(
 			array(
-				'page'   => 'acrossai_mcp_manager',
 				'action' => 'cli_auth',
 				'code'   => $auth_code,
 				'server' => rawurlencode( $server_id ),
 			),
-			admin_url( 'admin.php' )
+			\ACROSSAI_MCP_MANAGER\Frontend\FrontendAuth::get_base_url()
 		);
 
 		set_transient(
@@ -315,6 +315,7 @@ class CliController {
 				'name'        => $row['server_name'],
 				'description' => $row['description'],
 				'enabled'     => (bool) $row['is_enabled'],
+				'mcp_url'     => rest_url( 'mcp/mcp-adapter-default-server' ),
 			);
 		}
 

@@ -3,7 +3,7 @@
  * Plugin Name: AcrossAI MCP Manager
  * Plugin URI: https://wordpress.org/plugins/mcp-manager/
  * Description: Enable/Disable MCP Adapter Integration for WordPress
- * Version: 1.0.0
+ * Version: 1.2.0
  * Author: raftaar1191
  * Author URI: https://profiles.wordpress.org/raftaar1191/
  * License: GPL-2.0-or-later
@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ACROSSAI_MCP_MANAGER_VERSION', '1.0.0' );
+define( 'ACROSSAI_MCP_MANAGER_VERSION', '1.2.0' );
 define( 'ACROSSAI_MCP_MANAGER_FILE', __FILE__ );
 define( 'ACROSSAI_MCP_MANAGER_DIR', __DIR__ );
 define( 'ACROSSAI_MCP_MANAGER_URL', plugin_dir_url( __FILE__ ) );
@@ -42,7 +42,7 @@ if ( is_file( __DIR__ . '/vendor/autoload.php' ) ) {
  * Creates/upgrades the DB table if the schema version changed, then
  * initialises the plugin singleton.
  *
- * @since 1.0.0
+ * @since 1.2.0
  */
 add_action(
 	'plugins_loaded',
@@ -56,20 +56,29 @@ add_action(
 /**
  * Activation hook — create table and seed the default server row.
  *
- * @since 1.0.0
+ * @since 1.2.0
  */
 register_activation_hook(
 	__FILE__,
 	function () {
 		ACROSSAI_MCP_MANAGER\Database\MCPServerTable::create_table();
 		ACROSSAI_MCP_MANAGER\Database\MCPServerTable::insert_default_server();
+
+		// Register and flush the rewrite rule added by FrontendAuth so the
+		// /acrossai-mcp-manager/ slug resolves immediately after activation.
+		add_rewrite_rule(
+			'^' . ACROSSAI_MCP_MANAGER\Frontend\FrontendAuth::PAGE_SLUG . '/?$',
+			'index.php?' . ACROSSAI_MCP_MANAGER\Frontend\FrontendAuth::QUERY_VAR . '=1',
+			'top'
+		);
+		flush_rewrite_rules();
 	}
 );
 
 /**
  * Deactivation hook — placeholder for future cleanup.
  *
- * @since 1.0.0
+ * @since 1.2.0
  */
 register_deactivation_hook(
 	__FILE__,
