@@ -12,7 +12,7 @@
 | Text domain     | `acrossai-mcp-manager`                        |
 | PHP NS root     | `ACROSSAI_MCP_MANAGER\`                       |
 | PSR-4 root      | `src/`                                        |
-| Current version | `1.2.0`                                       |
+| Current version | `1.4.0`                                       |
 | Min PHP         | 7.4                                           |
 | Min WP          | 5.9                                           |
 | License         | GPL-2.0-or-later                              |
@@ -29,6 +29,7 @@ Manages MCP (Model Context Protocol) server entries stored in a custom DB table 
 - A frontend-hosted CLI auth page (virtual URL `/acrossai-mcp-manager/`).
 - REST endpoints consumed by the `@acrossai/mcp-manager` npm CLI tool.
 - A WP-CLI command (`wp acrossai-mcp setup`) for server-side credential generation.
+- Per-server access control — restrict which WordPress users may call a server's MCP endpoint.
 
 ---
 
@@ -73,6 +74,17 @@ src/
   MCP/
     Controller.php             Bridges WP to the wordpress/mcp-adapter package.
 
+  AccessControl/
+    AbstractProvider.php       Abstract base every provider must extend.
+                               Defines: get_id(), get_label(), get_options(), user_has_access(), is_available().
+    WpRoleProvider.php         Built-in provider: restricts by WordPress user role.
+                               get_options() returns all editable roles except Administrator.
+                               user_has_access() checks $user->roles against $selected_options.
+    AccessControlManager.php   Registry + REST enforcer.
+                               Loads providers via `acrossai_mcp_access_control_providers` filter.
+                               Hooks rest_pre_dispatch at priority 10 to gate MCP routes.
+                               Access logic: admin always passes → everyone type passes → provider check.
+
 assets/
   admin.css                   Styles for all admin pages.
                                .mcp-config-json   — wraps JSON textarea blocks.
@@ -99,17 +111,32 @@ WP Admin sidebar
 
 Tabbed view per server. Tabs (in order):
 
-| Tab slug    | Contents                                                              |
-|-------------|-----------------------------------------------------------------------|
-| `overview`  | Server name, description, status toggle, MCP API URL                 |
-| `npm`       | npx CLI command — gated by `acrossai_mcp_npm_login_enabled`          |
-| `openai`    | OpenAI ChatGPT Desktop — Application Password + JSON config          |
-| `claude`    | Anthropic Claude Desktop — Application Password + JSON config        |
-| `vscode`    | Visual Studio Code — Application Password + JSON config              |
-| `codex`     | OpenAI Codex CLI — Application Password + JSON config                |
-| `cursor`    | Cursor AI Editor — Application Password + JSON config                |
-| `custom`    | Custom MCP client — Application Password + JSON config               |
-| `wp-cli`    | WP-CLI setup commands with copy buttons                              |
+| Tab slug         | Contents                                                                          |
+|------------------|-----------------------------------------------------------------------------------|
+| `overview`       | Server name, description, status toggle, MCP API URL                             |
+| `npm`            | npx CLI command — gated by `acrossai_mcp_npm_login_enabled`                      |
+| `clients`        | Grouped MCP clients tab with pill sub-nav (see sub-tabs below)                   |
+| `wp-cli`         | WP-CLI setup commands with copy buttons                                          |
+| `tools`          | Read-only list of 3 built-in MCP tools                                           |
+| `abilities`      | Read-only list of WordPress abilities (MCP-public + private)                     |
+| `access-control` | Per-server access control rules (all server types)                               |
+| `update-server`  | Editable fields — database servers only                                          |
+| `danger-zone`    | Delete server — database servers only                                            |
+
+**MCP Clients sub-tabs** (rendered inside `clients` as pill-style secondary nav):
+
+| Client ID  | Client name           |
+|------------|-----------------------|
+| `openai`   | OpenAI (ChatGPT)      |
+| `claude`   | Anthropic Claude      |
+| `claude-code` | Claude Code CLI    |
+| `vscode`   | VS Code               |
+| `copilot`  | GitHub Copilot        |
+| `codex`    | OpenAI Codex CLI      |
+| `cursor`   | Cursor AI Editor      |
+| `custom`   | Custom Client         |
+
+URL format for client sub-tabs: `?tab=clients&client={client_id}`
 
 **npm tab gate**: if `acrossai_mcp_npm_login_enabled` is `false` (default), the npm tab shows a warning notice with a link to Settings instead of the command.
 
@@ -295,19 +322,115 @@ A client is skipped (with a log message) if its config directory does not exist 
 
 Table: `{prefix}acrossai_mcp_servers`
 Class: `ACROSSAI_MCP_MANAGER\Database\MCPServerTable`
-Current schema version: `1.1.0` (option: `acrossai_mcp_server_table_version`)
+Current schema version: `1.4.0` (option: `acrossai_mcp_manager_db_version`)
 
-| Column        | Type         | Notes                    |
-|---------------|--------------|--------------------------|
-| `id`          | BIGINT PK AI |                          |
-| `server_name` | VARCHAR(255) | Human-readable name      |
-| `description` | VARCHAR(500) | Optional                 |
-| `is_enabled`  | TINYINT(1)   | 0 = inactive, 1 = active |
-| `created_at`  | DATETIME     | UTC, default CURRENT_TIMESTAMP |
+| Column                  | Type          | Notes                                                             |
+|-------------------------|---------------|-------------------------------------------------------------------|
+| `id`                    | BIGINT PK AI  |                                                                   |
+| `server_name`           | VARCHAR(255)  | Human-readable name                                               |
+| `server_slug`           | VARCHAR(255)  | `sanitize_title(server_name)`; set at creation, never changes     |
+| `description`           | VARCHAR(500)  | Optional                                                          |
+| `is_enabled`            | TINYINT(1)    | 0 = inactive, 1 = active                                          |
+| `registered_from`       | VARCHAR(50)   | `'plugin'` \| `'database'` \| `'theme'` \| `'core'`              |
+| `server_route_namespace`| VARCHAR(100)  | REST namespace, default `'mcp'`                                   |
+| `server_route`          | VARCHAR(255)  | REST route path, default slug                                     |
+| `server_version`        | VARCHAR(50)   | MCP server version, default `'v1.0.0'`                            |
+| `access_control`        | TEXT          | JSON: `{"type":"wp_role","options":["editor"]}`; `''` = everyone  |
+| `created_at`            | DATETIME      | UTC, default CURRENT_TIMESTAMP                                    |
 
 `maybe_create_table()` runs on every `plugins_loaded` and is a no-op unless the stored version differs. Seeds a default "Default MCP Server" row if the table is empty.
 
+`sanitize_access_control( $raw )` — static helper that validates and re-encodes the JSON before any write. Resets to `''` on invalid input.
+
 All read methods use the `acrossai_mcp` object-cache group. Write methods (`toggle_status`, `update_server`) flush affected cache keys.
+
+---
+
+## Access Control
+
+### Overview
+
+Per-server access control restricts which WordPress users may call a server's MCP REST endpoint. The feature is implemented in the `ACROSSAI_MCP_MANAGER\AccessControl` namespace and is entirely independent of the BuddyBoss Platform Pro plugin (which was used as a reference for the architecture only).
+
+### Architecture
+
+```
+AbstractProvider          — abstract base; every provider extends this
+WpRoleProvider            — built-in provider for WordPress user roles
+AccessControlManager      — registry + REST enforcer
+```
+
+The manager is instantiated in `Plugin::__construct()` and registers two hooks:
+- `init` (priority 5) — loads provider instances via filter
+- `rest_pre_dispatch` (priority 10) — enforces access on every MCP REST request
+
+### Provider contract (`AbstractProvider`)
+
+| Method               | Required | Purpose                                                             |
+|----------------------|----------|---------------------------------------------------------------------|
+| `get_id(): string`   | Yes      | Unique machine-readable ID stored in DB (`'wp_role'`, etc.)        |
+| `get_label(): string`| Yes      | Human-readable label shown in admin dropdown                        |
+| `get_options(): array`| Yes     | Returns `[['id'=>'slug','label'=>'Name'], ...]` for checkboxes      |
+| `user_has_access( $user_id, $selected_options ): bool` | Yes | Core access check |
+| `is_available(): bool`| No      | Override to return `false` when a required plugin is inactive       |
+
+### Registering a custom provider
+
+```php
+add_filter( 'acrossai_mcp_access_control_providers', function( $providers ) {
+    $providers[] = new \My\Plugin\MyProvider();
+    return $providers;
+} );
+```
+
+The filter fires on `init` at priority 5. Providers added after that point are ignored.
+
+### Access decision hierarchy
+
+1. If the server's `access_control` column is empty or `type = 'everyone'` → **allow**.
+2. If the requesting user has `manage_options` capability (administrator) → **allow**.
+3. If the user is not authenticated → **deny** with HTTP 401.
+4. If no provider is registered for the configured `type` → **deny** with HTTP 403.
+5. Call `provider->user_has_access( $user_id, $options )` → allow or **deny** with HTTP 403.
+
+### Storage format (`access_control` column)
+
+```json
+{ "type": "wp_role", "options": ["editor", "author"] }
+```
+
+- `type` — provider ID. `'everyone'` or `''` means no restriction.
+- `options` — array of option IDs from `provider->get_options()`.
+- Empty string `''` is the default; the manager treats it as `type = 'everyone'`.
+
+Always write through `MCPServerTable::sanitize_access_control( $raw )` before storing.
+
+### Admin UI
+
+**Tab slug**: `access-control` — visible on all server types (plugin and database).
+
+- Dropdown (`ac_type`) populated from `AccessControlManager::get_providers()`.
+- Per-provider fieldset with checkboxes shown/hidden by inline JS as the dropdown changes.
+- Submits to `?action=save_access_control&server={id}` (POST, nonce: `acrossai_mcp_access_control_{id}`).
+- On success, redirects back to the `access-control` tab with `?updated=1`.
+
+### Firing the `acrossai_mcp_access_denied` action
+
+When a request is denied, the manager fires:
+
+```php
+do_action( 'acrossai_mcp_access_denied', $current_user_id, $server_row, $ac_config );
+```
+
+Third-party code can hook this for logging or notifications.
+
+### Future providers
+
+To add support for a new back-end (membership plugin, BuddyBoss profile type, etc.):
+1. Create `src/AccessControl/YourProvider.php` extending `AbstractProvider`.
+2. Implement all abstract methods. Override `is_available()` to check for the required plugin.
+3. Register via `acrossai_mcp_access_control_providers` filter.
+4. No changes to the DB schema, manager, or UI are required — the new provider is automatically shown in the admin dropdown when it is available.
 
 ---
 
@@ -342,3 +465,8 @@ Registered clients: `openai`, `claude`, `vscode`, `codex`, `cursor`, `custom`.
 - **`--user` is a WP-CLI global flag**. Do not declare it as a custom option in `SetupCommand`. Do not attempt to read it from `$assoc_args`; use `wp_get_current_user()` instead.
 - **Auth codes are single-use**. `auth_exchange` deletes both the auth-code and session-token transients on success. Do not attempt a second exchange with the same code.
 - **`mcp_url` in `/servers` response** is what the CLI uses as `WP_API_URL`. It must always be a full REST URL pointing to `mcp/mcp-adapter-default-server`. Do not change it to the site base URL.
+- **Access control defaults to "everyone"**. A missing or empty `access_control` column value is treated as `type='everyone'` by `AccessControlManager::parse_access_control()`. Pre-existing rows are never accidentally locked out.
+- **Administrators always bypass access control**. The `manage_options` capability check in `AccessControlManager::enforce_access()` is unconditional and must not be removed.
+- **Access control providers are loaded on `init` priority 5**. Providers registered after that action will be silently ignored. Third-party code must hook at priority 4 or earlier.
+- **`sanitize_access_control()` must be called before every DB write**. `update_server()` already does this automatically when `access_control` is in the `$data` array. Do not bypass it.
+- **The `access_control` column is TEXT, not VARCHAR**. Never add a length constraint to it — the options array can theoretically be long for future providers.

@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+use ACROSSAI_MCP_MANAGER\AccessControl\AccessControlManager;
 use ACROSSAI_MCP_MANAGER\Database\MCPServerTable;
 
 /**
@@ -73,7 +74,7 @@ class Settings {
 		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification
 
-		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update' ), true ) ) {
+		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_access_control' ), true ) ) {
 			return;
 		}
 
@@ -270,6 +271,46 @@ class Settings {
 						'action'  => 'edit',
 						'server'  => $server_id,
 						'tab'     => 'update-server',
+						'updated' => '1',
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			exit;
+		}
+
+		// ── save_access_control (POST) ────────────────────────────────────────────
+		if ( 'save_access_control' === $action && 'POST' === $_SERVER['REQUEST_METHOD'] ) {
+			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+
+			check_admin_referer( 'acrossai_mcp_access_control_' . $server_id );
+
+			$server = $server_id ? MCPServerTable::get_by_id( $server_id ) : null;
+
+			if ( ! $server ) {
+				wp_die( esc_html__( 'Invalid server.', 'acrossai-mcp-manager' ) );
+			}
+
+			$ac_type    = isset( $_POST['ac_type'] ) ? sanitize_key( wp_unslash( $_POST['ac_type'] ) ) : 'everyone';
+			$ac_options = array();
+
+			if ( 'everyone' !== $ac_type && isset( $_POST['ac_options'] ) && is_array( $_POST['ac_options'] ) ) {
+				$ac_options = array_map( 'sanitize_key', wp_unslash( $_POST['ac_options'] ) );
+			}
+
+			$access_control_json = ( 'everyone' === $ac_type )
+				? ''
+				: wp_json_encode( array( 'type' => $ac_type, 'options' => array_values( $ac_options ) ) );
+
+			MCPServerTable::update_server( $server_id, array( 'access_control' => $access_control_json ) );
+
+			wp_safe_redirect(
+				add_query_arg(
+					array(
+						'page'    => 'acrossai_mcp_manager',
+						'action'  => 'edit',
+						'server'  => $server_id,
+						'tab'     => 'access-control',
 						'updated' => '1',
 					),
 					admin_url( 'admin.php' )
@@ -882,6 +923,10 @@ class Settings {
 				   class="nav-tab <?php echo 'abilities' === $active_tab ? 'nav-tab-active' : ''; ?>">
 					<?php esc_html_e( 'Abilities', 'acrossai-mcp-manager' ); ?>
 				</a>
+				<a href="<?php echo esc_url( $make_tab_url( 'access-control' ) ); ?>"
+				   class="nav-tab <?php echo 'access-control' === $active_tab ? 'nav-tab-active' : ''; ?>">
+					<?php esc_html_e( 'Access Control', 'acrossai-mcp-manager' ); ?>
+				</a>
 				<?php if ( 'database' === ( $server['registered_from'] ?? 'plugin' ) ) : ?>
 				<a href="<?php echo esc_url( $make_tab_url( 'update-server' ) ); ?>"
 				   class="nav-tab <?php echo 'update-server' === $active_tab ? 'nav-tab-active' : ''; ?>">
@@ -908,6 +953,8 @@ class Settings {
 					$this->render_tools_tab( $server );
 				} elseif ( 'abilities' === $active_tab ) {
 					$this->render_abilities_tab( $server );
+				} elseif ( 'access-control' === $active_tab ) {
+					$this->render_access_control_tab( $server );
 				} elseif ( 'update-server' === $active_tab ) {
 					$this->render_update_server_tab( $server );
 				} elseif ( 'danger-zone' === $active_tab ) {
@@ -1664,6 +1711,175 @@ class Settings {
 			<?php endif; ?>
 
 		</div>
+		<?php
+	}
+
+	/**
+	/**
+	 * Render the Access Control tab — per-server access rules.
+	 *
+	 * The tab is available for all server types (plugin-registered and database).
+	 * It shows:
+	 *   - A dropdown to choose the access control type (Everyone / WordPress Role / …).
+	 *   - When a type other than "Everyone" is selected, a checkbox list of allowed
+	 *     options rendered by the chosen provider.
+	 *   - A save button that POSTs to `?action=save_access_control&server={id}`.
+	 *
+	 * Access decision hierarchy (enforced by AccessControlManager):
+	 *   1. Administrators always pass.
+	 *   2. "Everyone" type → any authenticated user passes.
+	 *   3. Other types → the provider's user_has_access() is called.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param array $server DB row for the server being viewed.
+	 *
+	 * @return void
+	 */
+	private function render_access_control_tab( array $server ) {
+		$server_id = (int) $server['id'];
+
+		// Parse stored config.
+		$raw_ac    = $server['access_control'] ?? '';
+		$ac_config = array( 'type' => 'everyone', 'options' => array() );
+		if ( '' !== $raw_ac ) {
+			$decoded = json_decode( $raw_ac, true );
+			if ( is_array( $decoded ) ) {
+				$ac_config['type']    = sanitize_key( $decoded['type'] ?? 'everyone' );
+				$ac_config['options'] = array_map( 'sanitize_key', (array) ( $decoded['options'] ?? array() ) );
+			}
+		}
+
+		// Collect registered providers.
+		$manager   = new AccessControlManager();
+		$providers = $manager->get_providers();
+
+		$form_action = add_query_arg(
+			array(
+				'page'   => 'acrossai_mcp_manager',
+				'action' => 'save_access_control',
+				'server' => $server_id,
+			),
+			admin_url( 'admin.php' )
+		);
+		?>
+		<div class="mcp-tab-panel">
+
+			<h2><?php esc_html_e( 'Access Control', 'acrossai-mcp-manager' ); ?></h2>
+			<p class="description">
+				<?php esc_html_e( 'Control which users are allowed to connect to this MCP server. Administrators always have access regardless of this setting.', 'acrossai-mcp-manager' ); ?>
+			</p>
+
+			<form method="post" action="<?php echo esc_url( $form_action ); ?>" id="acrossai-ac-form">
+				<?php wp_nonce_field( 'acrossai_mcp_access_control_' . $server_id ); ?>
+
+				<table class="form-table" role="presentation">
+					<tbody>
+
+						<!-- Access control type selector -->
+						<tr>
+							<th scope="row">
+								<label for="ac_type"><?php esc_html_e( 'Who can access', 'acrossai-mcp-manager' ); ?></label>
+							</th>
+							<td>
+								<select name="ac_type" id="ac_type" class="regular-text acrossai-ac-type-select">
+									<option value="everyone" <?php selected( $ac_config['type'], 'everyone' ); ?>>
+										<?php esc_html_e( 'Everyone (no restriction)', 'acrossai-mcp-manager' ); ?>
+									</option>
+									<?php foreach ( $providers as $provider_id => $provider ) : ?>
+										<?php if ( $provider->is_available() ) : ?>
+											<option value="<?php echo esc_attr( $provider_id ); ?>"
+											        <?php selected( $ac_config['type'], $provider_id ); ?>>
+												<?php echo esc_html( $provider->get_label() ); ?>
+											</option>
+										<?php endif; ?>
+									<?php endforeach; ?>
+								</select>
+								<p class="description">
+									<?php esc_html_e( 'Select "Everyone" to allow any authenticated user. Select a provider to restrict access to specific groups.', 'acrossai-mcp-manager' ); ?>
+								</p>
+							</td>
+						</tr>
+
+						<!-- Provider-specific options (shown/hidden via JS) -->
+						<?php foreach ( $providers as $provider_id => $provider ) : ?>
+							<?php if ( ! $provider->is_available() ) { continue; } ?>
+							<?php $options = $provider->get_options(); ?>
+							<?php if ( empty( $options ) ) { continue; } ?>
+
+							<tr class="acrossai-ac-options-row acrossai-ac-options-<?php echo esc_attr( $provider_id ); ?>"
+							    style="<?php echo $ac_config['type'] === $provider_id ? '' : 'display:none'; ?>">
+								<th scope="row">
+									<?php echo esc_html( $provider->get_label() ); ?>
+								</th>
+								<td>
+									<fieldset>
+										<legend class="screen-reader-text">
+											<?php
+											printf(
+												/* translators: %s: provider label */
+												esc_html__( 'Allowed %s values', 'acrossai-mcp-manager' ),
+												esc_html( $provider->get_label() )
+											);
+											?>
+										</legend>
+										<p class="description" style="margin-bottom:8px;">
+											<?php
+											printf(
+												/* translators: %s: provider label */
+												esc_html__( 'Select which %s values may access this server. Leave all unchecked to deny everyone (except administrators).', 'acrossai-mcp-manager' ),
+												esc_html( $provider->get_label() )
+											);
+											?>
+										</p>
+										<?php foreach ( $options as $option ) : ?>
+											<?php $checked = in_array( $option['id'], $ac_config['options'], true ); ?>
+											<label style="display:block;margin-bottom:4px;">
+												<input type="checkbox"
+												       name="ac_options[]"
+												       value="<?php echo esc_attr( $option['id'] ); ?>"
+												       <?php checked( $checked ); ?>>
+												<?php echo esc_html( $option['label'] ); ?>
+											</label>
+										<?php endforeach; ?>
+									</fieldset>
+								</td>
+							</tr>
+
+						<?php endforeach; ?>
+
+					</tbody>
+				</table>
+
+				<p class="submit">
+					<?php submit_button( __( 'Save Access Control', 'acrossai-mcp-manager' ), 'primary', 'submit', false ); ?>
+				</p>
+			</form>
+
+		</div><!-- .mcp-tab-panel -->
+
+		<script>
+		(function() {
+			var select = document.getElementById('ac_type');
+			if ( ! select ) { return; }
+
+			function toggleRows() {
+				var chosen = select.value;
+				document.querySelectorAll('.acrossai-ac-options-row').forEach(function(row) {
+					var isMatch = row.classList.contains('acrossai-ac-options-' + chosen);
+					row.style.display = isMatch ? '' : 'none';
+					// Uncheck hidden options so they are not submitted.
+					if ( ! isMatch ) {
+						row.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+							cb.checked = false;
+						});
+					}
+				});
+			}
+
+			select.addEventListener('change', toggleRows);
+		}());
+		</script>
 		<?php
 	}
 

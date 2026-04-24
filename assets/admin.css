@@ -256,6 +256,18 @@
 }
 
 /* -------------------------------------------------------------------------
+   Access Control tab
+   ------------------------------------------------------------------------- */
+
+/* Fieldset that wraps provider options — slight inset to differentiate from table rows */
+.acrossai-ac-options-row fieldset {
+	padding: 8px 12px;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	background: #fafafa;
+}
+
+/* -------------------------------------------------------------------------
    MCP Clients — secondary sub-tab nav
    ------------------------------------------------------------------------- */
 .acrossai-clients-panel {

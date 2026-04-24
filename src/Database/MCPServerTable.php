@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Manages the {prefix}acrossai_mcp_servers custom table.
  *
- * Schema (v1.3.0)
+ * Schema (v1.4.0)
  * ------
  *   id                     BIGINT UNSIGNED  PK auto-increment
  *   server_name            VARCHAR(255)     human-readable name
@@ -26,6 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   server_route_namespace VARCHAR(100)     REST namespace (e.g. 'mcp')
  *   server_route           VARCHAR(255)     REST route path (e.g. 'mcp-adapter-default-server')
  *   server_version         VARCHAR(50)      MCP server version (e.g. 'v1.0.0')
+ *   access_control         TEXT             JSON: {"type":"wp_role","options":["editor"]}; empty = everyone
  *   created_at             DATETIME         row creation timestamp
  *
  * registered_from values
@@ -48,7 +49,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MCPServerTable {
 
 	const TABLE_NAME        = 'acrossai_mcp_servers';
-	const DB_VERSION        = '1.3.0';
+	const DB_VERSION        = '1.4.0';
 	const DB_VERSION_OPTION = 'acrossai_mcp_manager_db_version';
 
 	/**
@@ -106,6 +107,7 @@ class MCPServerTable {
 			server_route_namespace VARCHAR(100) NOT NULL DEFAULT 'mcp',
 			server_route VARCHAR(255) NOT NULL DEFAULT '',
 			server_version VARCHAR(50) NOT NULL DEFAULT 'v1.0.0',
+			access_control TEXT NOT NULL DEFAULT '',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id)
 		) {$charset_collate};";
@@ -135,7 +137,7 @@ class MCPServerTable {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$rows = $wpdb->get_results(
-			"SELECT id, server_name, server_slug, registered_from, server_route_namespace, server_route, server_version FROM {$table_name}", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"SELECT id, server_name, server_slug, registered_from, server_route_namespace, server_route, server_version, access_control FROM {$table_name}", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			ARRAY_A
 		);
 
@@ -184,6 +186,16 @@ class MCPServerTable {
 			// Back-fill server_version for pre-v1.3.0 rows.
 			if ( '' === ( $row['server_version'] ?? '' ) ) {
 				$update_data['server_version'] = 'v1.0.0';
+				$update_fmt[]                  = '%s';
+				$needs_update                  = true;
+			}
+
+			// access_control column is new in v1.4.0. Pre-existing rows that
+			// don't yet have the column will have a null value after the SELECT
+			// (dbDelta adds the column but does not set values). Normalise to
+			// an empty string which the manager treats as "everyone".
+			if ( ! isset( $row['access_control'] ) || null === $row['access_control'] ) {
+				$update_data['access_control'] = '';
 				$update_fmt[]                  = '%s';
 				$needs_update                  = true;
 			}
@@ -429,22 +441,25 @@ class MCPServerTable {
 	 *
 	 * @since 1.2.0
 	 * @updated 1.3.0 Added $namespace, $route, $version params.
+	 * @updated 1.4.0 Added $access_control param.
 	 *
-	 * @param string $server_name Human-readable server name (required).
-	 * @param string $description Optional description.
-	 * @param string $namespace   REST route namespace. Defaults to 'mcp'.
-	 * @param string $route       REST route path. Defaults to sanitize_title($server_name).
-	 * @param string $version     MCP server version string. Defaults to 'v1.0.0'.
+	 * @param string $server_name    Human-readable server name (required).
+	 * @param string $description    Optional description.
+	 * @param string $namespace      REST route namespace. Defaults to 'mcp'.
+	 * @param string $route          REST route path. Defaults to sanitize_title($server_name).
+	 * @param string $version        MCP server version string. Defaults to 'v1.0.0'.
+	 * @param string $access_control JSON-encoded access control config. Defaults to '' (everyone).
 	 *
 	 * @return int|false New row ID on success, false on failure or slug conflict.
 	 */
-	public static function create_server( $server_name, $description = '', $namespace = 'mcp', $route = '', $version = 'v1.0.0' ) {
-		$server_name = sanitize_text_field( $server_name );
-		$description = sanitize_textarea_field( $description );
-		$server_slug = sanitize_title( $server_name );
-		$namespace   = sanitize_text_field( $namespace ) ?: 'mcp';
-		$route       = sanitize_text_field( $route );
-		$version     = sanitize_text_field( $version ) ?: 'v1.0.0';
+	public static function create_server( $server_name, $description = '', $namespace = 'mcp', $route = '', $version = 'v1.0.0', $access_control = '' ) {
+		$server_name    = sanitize_text_field( $server_name );
+		$description    = sanitize_textarea_field( $description );
+		$server_slug    = sanitize_title( $server_name );
+		$namespace      = sanitize_text_field( $namespace ) ?: 'mcp';
+		$route          = sanitize_text_field( $route );
+		$version        = sanitize_text_field( $version ) ?: 'v1.0.0';
+		$access_control = self::sanitize_access_control( $access_control );
 
 		// Route defaults to the slug when not provided.
 		if ( '' === $route ) {
@@ -473,8 +488,9 @@ class MCPServerTable {
 				'server_route_namespace' => $namespace,
 				'server_route'           => $route,
 				'server_version'         => $version,
+				'access_control'         => $access_control,
 			),
-			array( '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s' )
+			array( '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $result ) {
@@ -579,11 +595,12 @@ class MCPServerTable {
 	/**
 	 * Update editable fields for a server row.
 	 *
-	 * Only whitelisted keys (server_name, description) are persisted.
-	 * server_slug is intentionally NOT updatable — changing it would break
-	 * all existing client configs pointing to the old MCP URL.
+	 * Only whitelisted keys are persisted. server_slug is intentionally NOT
+	 * updatable — changing it would break all existing client configs pointing
+	 * to the old MCP URL.
 	 *
 	 * @since 1.1.0
+	 * @updated 1.4.0 access_control added to the allowed field list.
 	 *
 	 * @param int   $id   Server row ID.
 	 * @param array $data Associative array of fields to update.
@@ -592,8 +609,13 @@ class MCPServerTable {
 	 */
 	public static function update_server( $id, array $data ) {
 		$id      = absint( $id );
-		$allowed = array( 'server_name', 'description', 'server_route_namespace', 'server_route', 'server_version' );
+		$allowed = array( 'server_name', 'description', 'server_route_namespace', 'server_route', 'server_version', 'access_control' );
 		$fields  = array_intersect_key( $data, array_flip( $allowed ) );
+
+		// Sanitize access_control JSON if it was passed.
+		if ( isset( $fields['access_control'] ) ) {
+			$fields['access_control'] = self::sanitize_access_control( $fields['access_control'] );
+		}
 
 		if ( empty( $fields ) ) {
 			return false;
@@ -618,6 +640,44 @@ class MCPServerTable {
 		}
 
 		return false !== $result;
+	}
+
+	/**
+	 * Sanitize and validate an access_control JSON string before writing to DB.
+	 *
+	 * Accepts either:
+	 *   - An empty string (stored as-is; manager interprets as "everyone").
+	 *   - A JSON string with keys `type` (string) and `options` (array of strings).
+	 *
+	 * Any value that cannot be decoded as a valid JSON object is reset to ''.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param string $raw Raw value from user input or DB.
+	 *
+	 * @return string Sanitized JSON string, or '' when empty/invalid.
+	 */
+	public static function sanitize_access_control( string $raw ): string {
+		$raw = trim( $raw );
+
+		if ( '' === $raw ) {
+			return '';
+		}
+
+		$decoded = json_decode( $raw, true );
+
+		if ( ! is_array( $decoded ) ) {
+			return '';
+		}
+
+		$type    = isset( $decoded['type'] ) ? sanitize_key( $decoded['type'] ) : 'everyone';
+		$options = array();
+
+		if ( isset( $decoded['options'] ) && is_array( $decoded['options'] ) ) {
+			$options = array_values( array_map( 'sanitize_key', $decoded['options'] ) );
+		}
+
+		return wp_json_encode( array( 'type' => $type, 'options' => $options ) );
 	}
 
 	/**
