@@ -8,6 +8,7 @@
 
 namespace ACROSSAI_MCP_MANAGER\Core;
 
+use WPBoilerplate\AccessControl\Admin\AccessControlUI;
 use WPBoilerplate\AccessControl\AccessControlManager;
 use WPBoilerplate\AccessControl\AccessControlTable;
 use ACROSSAI_MCP_MANAGER\Admin\Settings;
@@ -89,6 +90,7 @@ class Plugin {
 		// Custom filter tag so this plugin's providers don't collide with
 		// other plugins using the same wpb-access-control library.
 		$this->access_control = new AccessControlManager( 'acrossai_mcp_access_control_providers' );
+		AccessControlUI::bootstrap();
 
 		// OAuth 2.1 server — registers rewrite rules, REST routes, and bearer validation (priority 5).
 		$this->oauth_server = new OAuthServer();

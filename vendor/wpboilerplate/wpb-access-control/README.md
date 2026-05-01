@@ -155,6 +155,54 @@ An empty string `""` means **no restriction** — all users pass.
 
 ---
 
+## Admin UI
+
+The library ships a ready-to-use admin panel — type dropdown, role checkboxes, and user search-as-you-type with multi-select tags. Consuming plugins need three lines of integration code.
+
+### 1. Enqueue assets
+
+```php
+use WPBoilerplate\AccessControl\Admin\AccessControlUI;
+
+add_action( 'admin_enqueue_scripts', function() use ( $manager ) {
+    $ui = new AccessControlUI( $manager );
+    $ui->enqueue_assets();
+} );
+```
+
+### 2. Render the panel
+
+```php
+$ui->render( 'my-namespace', 'my-resource', [
+    'form_action'  => admin_url( 'admin.php?page=my-plugin&action=save_ac' ),
+    'nonce_action' => 'my_plugin_save_ac',
+    'submit_label' => __( 'Save', 'my-plugin' ),
+] );
+```
+
+The panel always renders a complete `<form>` element — including the nonce field and submit button. Provide `form_action` and `nonce_action` so the library can wire the form correctly.
+
+### 3. Handle save
+
+```php
+// In your admin_init POST handler:
+check_admin_referer( 'my_plugin_save_ac' );
+$json = AccessControlUI::extract_posted_config( $_POST );
+AccessControlTable::update( 'my-namespace', 'my-resource', $json );
+```
+
+`extract_posted_config()` reads `ac_type` and `ac_options[]` from the posted data and returns a sanitized JSON string (or `''` for "everyone"). It does not verify a nonce — that is the caller's responsibility.
+
+### Overriding the asset URL
+
+The library auto-detects its asset URL from `WP_CONTENT_DIR`/`WP_CONTENT_URL`. If your layout is unusual (symlinked vendor, non-standard paths), override it:
+
+```php
+$ui->set_assets_url( plugins_url( 'vendor/wpboilerplate/wpb-access-control/assets', __FILE__ ) );
+```
+
+---
+
 ## Registering a custom provider
 
 ```php
@@ -230,6 +278,7 @@ add_action( 'wpb_access_control_denied', function( $user_id, $namespace, $key, $
 | Provider ID | Class | Description |
 |-------------|-------|-------------|
 | `wp_role` | `WpRoleProvider` | Restricts by WordPress user role. Administrator excluded from options (always bypassed). |
+| `wp_user` | `WpUserProvider` | Restricts to a specific list of WordPress users, selected by username or email via AJAX search. Supports multiple users. |
 
 ### `WpRoleProvider` filters
 
@@ -237,6 +286,70 @@ add_action( 'wpb_access_control_denied', function( $user_id, $namespace, $key, $
 |--------|-------------|
 | `wpb_access_control_wp_role_options` | Modify the list of selectable role options |
 | `wpb_access_control_wp_role_has_access` | Override the final role-based access decision |
+
+### `WpUserProvider`
+
+Allows the site administrator to pick one or more specific WordPress users by
+searching for their username or email. The search happens via AJAX in the
+consuming plugin's admin UI — the library provides the data layer.
+
+**JSON config format:**
+
+```json
+{ "type": "wp_user", "options": ["1", "42", "7"] }
+```
+
+Options contain **user IDs stored as strings**. IDs survive the
+`sanitize_key()` pass that `AccessControlTable::sanitize()` applies to all
+option values; email addresses would not.
+
+**Static helpers for your AJAX handler:**
+
+```php
+use WPBoilerplate\AccessControl\WpUserProvider;
+
+// Live search — call from your wp_ajax_ handler.
+$results = WpUserProvider::search_users( 'jane' );
+// Returns: [['id'=>'5','login'=>'jane','email'=>'jane@example.com','display_name'=>'Jane Doe'], ...]
+
+// Hydrate saved IDs back into display data for the settings page.
+$users = WpUserProvider::get_users_by_ids( ['5', '42'] );
+```
+
+**Wiring up the AJAX search in your consuming plugin:**
+
+```php
+// Register the AJAX action (admin only).
+add_action( 'wp_ajax_my_plugin_search_users', function () {
+    check_ajax_referer( 'my_plugin_ac_nonce' );
+    if ( ! current_user_can( 'manage_options' ) ) {
+        wp_send_json_error( 'Forbidden', 403 );
+    }
+    $term    = sanitize_text_field( wp_unslash( $_GET['term'] ?? '' ) );
+    $results = WpUserProvider::search_users( $term );
+    wp_send_json_success( $results );
+} );
+```
+
+**Saving the selected users from your admin form:**
+
+```php
+// $user_ids is an array of user IDs from the submitted form.
+$user_ids = array_map( 'absint', (array) ( $_POST['allowed_users'] ?? [] ) );
+$options  = array_map( 'strval', $user_ids );
+
+AccessControlTable::update(
+    'my-namespace',
+    'my-resource',
+    wp_json_encode( [ 'type' => 'wp_user', 'options' => $options ] )
+);
+```
+
+**`WpUserProvider` filters:**
+
+| Filter | Description |
+|--------|-------------|
+| `wpb_access_control_wp_user_has_access` | Override the final per-user access decision |
 
 ---
 

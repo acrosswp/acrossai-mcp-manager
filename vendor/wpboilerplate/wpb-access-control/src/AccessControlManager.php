@@ -114,6 +114,7 @@ class AccessControlManager {
 	public function load_providers(): void {
 		$default_providers = array(
 			new WpRoleProvider(),
+			new WpUserProvider(),
 		);
 
 		/**

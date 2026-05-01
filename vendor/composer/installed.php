@@ -3,7 +3,7 @@
         'name' => 'acrosswp/acrossai-mcp-manager',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'c697b94d59f25392c0e5978efe308e1a5e566bf6',
+        'reference' => 'd7ca3694d734ef85917962b7d95bbbc860e0fe1d',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'acrosswp/acrossai-mcp-manager' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'c697b94d59f25392c0e5978efe308e1a5e566bf6',
+            'reference' => 'd7ca3694d734ef85917962b7d95bbbc860e0fe1d',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
@@ -49,7 +49,7 @@
         'wpboilerplate/wpb-access-control' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '3272d18526476897cb678e926ca929687a0b9f2f',
+            'reference' => 'b903e9f0987d3fc1f6e62bee459c24e4117eb8f0',
             'type' => 'library',
             'install_path' => __DIR__ . '/../wpboilerplate/wpb-access-control',
             'aliases' => array(

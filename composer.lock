@@ -221,13 +221,13 @@
             "version": "dev-main",
             "source": {
                 "type": "git",
-                "url": "git@github.com:WPBoilerplate/wpb-access-control.git",
-                "reference": "3272d18526476897cb678e926ca929687a0b9f2f"
+                "url": "https://github.com/WPBoilerplate/wpb-access-control.git",
+                "reference": "b903e9f0987d3fc1f6e62bee459c24e4117eb8f0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/3272d18526476897cb678e926ca929687a0b9f2f",
-                "reference": "3272d18526476897cb678e926ca929687a0b9f2f",
+                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/b903e9f0987d3fc1f6e62bee459c24e4117eb8f0",
+                "reference": "b903e9f0987d3fc1f6e62bee459c24e4117eb8f0",
                 "shasum": ""
             },
             "require": {
@@ -262,7 +262,7 @@
                 "issues": "https://github.com/WPBoilerplate/wpb-access-control/issues",
                 "source": "https://github.com/WPBoilerplate/wpb-access-control"
             },
-            "time": "2026-04-24T07:20:30+00:00"
+            "time": "2026-05-01T22:52:22+00:00"
         }
     ],
     "packages-dev": [],

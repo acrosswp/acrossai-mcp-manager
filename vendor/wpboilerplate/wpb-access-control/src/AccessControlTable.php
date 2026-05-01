@@ -48,6 +48,8 @@ class AccessControlTable {
 	const DB_VERSION        = '1.0.0';
 	const DB_VERSION_OPTION = 'wpb_access_control_db_version';
 	const CACHE_GROUP       = 'wpb_access_control';
+	const NAMESPACE_LENGTH  = 100;
+	const KEY_LENGTH        = 255;
 
 	// -------------------------------------------------------------------------
 	// Table lifecycle
@@ -85,13 +87,13 @@ class AccessControlTable {
 		// Two spaces before PRIMARY KEY required by dbDelta.
 		$sql = "CREATE TABLE {$table_name} (
 			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-			namespace VARCHAR(100) NOT NULL DEFAULT '',
-			`key` VARCHAR(255) NOT NULL DEFAULT '',
+			namespace VARCHAR(" . self::NAMESPACE_LENGTH . ") NOT NULL DEFAULT '',
+			`key` VARCHAR(" . self::KEY_LENGTH . ") NOT NULL DEFAULT '',
 			access_control TEXT NOT NULL DEFAULT '',
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
-			UNIQUE KEY namespace_key (namespace(100),`key`(191))
+			UNIQUE KEY namespace_key (namespace(" . self::NAMESPACE_LENGTH . "),`key`(191))
 		) {$charset_collate};";
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
