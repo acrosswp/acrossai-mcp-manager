@@ -125,6 +125,7 @@ class ConnectorAuditLogTable {
 			'created_at'              => current_time( 'mysql', true ),
 		);
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return false !== $wpdb->insert(
 			self::get_table_name(),
 			$insert_data,
@@ -166,6 +167,7 @@ class ConnectorAuditLogTable {
 		$table = self::get_table_name();
 
 		if ( $include_global ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return (int) $wpdb->get_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM %i WHERE server_id = %d OR server_id = 0',
@@ -175,6 +177,7 @@ class ConnectorAuditLogTable {
 			);
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM %i WHERE server_id = %d',
@@ -204,6 +207,7 @@ class ConnectorAuditLogTable {
 		$table = self::get_table_name();
 
 		if ( $include_global ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$results = $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT * FROM %i WHERE server_id = %d OR server_id = 0 ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d',
@@ -215,6 +219,7 @@ class ConnectorAuditLogTable {
 				ARRAY_A
 			);
 		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$results = $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT * FROM %i WHERE server_id = %d ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d',

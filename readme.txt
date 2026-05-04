@@ -8,11 +8,11 @@ Stable tag: 0.0.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Connect WordPress to MCP clients like VS Code, Claude, and Copilot using secure application passwords and OAuth authentication.
-
-The plugin uses the standard `@automattic/mcp-wordpress-remote@latest` package with WordPress Application Passwords for the default remote flow. It also includes an optional experimental direct Claude Connectors mode backed by a WordPress-hosted OAuth approval flow.
+Connect WordPress to MCP clients like VS Code, Claude, and Copilot using secure application passwords.
 
 == Description ==
+
+MCP Manager uses the standard `@automattic/mcp-wordpress-remote@latest` package with WordPress Application Passwords for the default remote flow. It also includes an optional experimental direct Claude Connectors mode backed by a WordPress-hosted OAuth approval flow.
 
 MCP Manager is a WordPress plugin that enables seamless integration with Model Context Protocol (MCP) servers, allowing AI assistants and code editors to safely access your WordPress instance through secure application passwords.
 

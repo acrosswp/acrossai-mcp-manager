@@ -160,19 +160,19 @@ class MCPServerTable {
 			)
 		);
 
-		// Build SELECT — only include access_control when the column exists.
-		$select_cols = 'id, server_name, server_slug, registered_from, server_route_namespace, server_route, server_version, claude_connector_client_id, claude_connector_client_secret, claude_connector_redirect_uri';
 		if ( $has_ac_column ) {
-			$select_cols .= ', access_control';
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( 'SELECT id, server_name, server_slug, registered_from, server_route_namespace, server_route, server_version, claude_connector_client_id, claude_connector_client_secret, claude_connector_redirect_uri, access_control FROM %i', $table_name ),
+				ARRAY_A
+			);
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( 'SELECT id, server_name, server_slug, registered_from, server_route_namespace, server_route, server_version, claude_connector_client_id, claude_connector_client_secret, claude_connector_redirect_uri FROM %i', $table_name ),
+				ARRAY_A
+			);
 		}
-
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Column list built from hardcoded values only; table name prepared with %i
-		$query = sprintf( 'SELECT %s FROM %%i', $select_cols );
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$rows = $wpdb->get_results(
-			$wpdb->prepare( $query, $table_name ),
-			ARRAY_A
-		);
 
 		if ( empty( $rows ) ) {
 			return;
@@ -244,7 +244,7 @@ class MCPServerTable {
 			}
 
 			if ( $needs_update ) {
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 				$wpdb->update(
 					self::get_table_name(),
 					$update_data,
@@ -264,12 +264,12 @@ class MCPServerTable {
 
 		// Drop the now-orphaned access_control column if it still exists.
 		if ( $has_ac_column ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$table_name} DROP COLUMN access_control" );
 		}
 
 		if ( $has_connector_column ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$wpdb->query( "ALTER TABLE {$table_name} DROP COLUMN connector_enabled" );
 		}
 	}
@@ -474,6 +474,7 @@ class MCPServerTable {
 
 		$table_name = esc_sql( self::get_table_name() );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$table_name} WHERE server_slug = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -512,7 +513,7 @@ class MCPServerTable {
 		$table_name = esc_sql( self::get_table_name() );
 
 		if ( $exclude_id ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$count = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM {$table_name} WHERE server_slug = %s AND id != %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -521,7 +522,7 @@ class MCPServerTable {
 				)
 			);
 		} else {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$count = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					"SELECT COUNT(*) FROM {$table_name} WHERE server_slug = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared

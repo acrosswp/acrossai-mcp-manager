@@ -160,6 +160,7 @@ class CliAuthLogTable {
 
 		$table = self::get_table_name();
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM %i WHERE server_id = %d',
@@ -187,6 +188,7 @@ class CliAuthLogTable {
 
 		$table = self::get_table_name();
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE server_id = %d ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d',
@@ -243,6 +245,7 @@ class CliAuthLogTable {
 				return true;
 			}
 
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			return false !== $wpdb->update(
 				self::get_table_name(),
 				$update_data,
@@ -264,6 +267,7 @@ class CliAuthLogTable {
 			$insert_data[ $key ] = $value;
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		return false !== $wpdb->insert(
 			self::get_table_name(),
 			$insert_data,
@@ -283,6 +287,7 @@ class CliAuthLogTable {
 
 		$table = self::get_table_name();
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		return $wpdb->get_row(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE auth_code_hash = %s LIMIT 1',

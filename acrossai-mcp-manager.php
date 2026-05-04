@@ -43,7 +43,6 @@ add_action(
 	'plugins_loaded',
 	function () {
 		ACROSSAI_MCP_MANAGER\Database\MCPServerTable::maybe_create_table();
-		ACROSSAI_MCP_MANAGER\Database\LegacyConnectorCleanup::maybe_cleanup();
 		ACROSSAI_MCP_MANAGER\Core\Plugin::instance();
 	},
 	10
@@ -62,7 +61,6 @@ register_activation_hook(
 		ACROSSAI_MCP_MANAGER\Database\CliAuthLogTable::maybe_create_table();
 		ACROSSAI_MCP_MANAGER\Database\ConnectorAuditLogTable::maybe_create_table();
 		WPBoilerplate\AccessControl\AccessControlTable::maybe_create_table();
-		ACROSSAI_MCP_MANAGER\Database\LegacyConnectorCleanup::maybe_cleanup();
 
 		// Register and flush the frontend CLI auth page rewrite rule.
 		add_rewrite_rule(

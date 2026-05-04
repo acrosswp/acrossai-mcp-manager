@@ -1411,6 +1411,13 @@ class ClaudeConnectors {
 	 * @return bool
 	 */
 	private function is_current_request_for_mcp_server() {
+		// rest_url() requires $wp_rewrite to be initialized, which hasn't happened
+		// yet if determine_current_user fires during early bootstrap (e.g. inside
+		// the fatal-error handler). Bail until init has run.
+		if ( ! did_action( 'init' ) ) {
+			return false;
+		}
+
 		$uri_path = wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '', PHP_URL_PATH );
 
 		if ( ! is_string( $uri_path ) || '' === $uri_path ) {
