@@ -24,10 +24,22 @@
 	"require": {
 		"php": ">=7.4"
 	},
+	"require-dev": {
+		"brain/monkey": "^2.6",
+		"phpunit/phpunit": "^9.6"
+	},
 	"autoload": {
 		"psr-4": {
 			"WPBoilerplate\\AccessControl\\": "src/"
 		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"WPBoilerplate\\AccessControl\\Tests\\": "tests/"
+		}
+	},
+	"scripts": {
+		"test": "phpunit"
 	},
 	"minimum-stability": "dev",
 	"prefer-stable": true,

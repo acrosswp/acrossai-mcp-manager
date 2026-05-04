@@ -49,11 +49,11 @@ class WpRoleProvider extends AbstractProvider {
 	}
 
 	/**
-	 * Return all editable WordPress roles except Administrator.
+	 * Return all editable WordPress roles, including Administrator and any custom roles.
 	 *
-	 * Administrators always have access, so listing them as a selectable option
-	 * would be misleading. Uses get_editable_roles() so roles added by other
-	 * plugins/themes are included automatically.
+	 * Uses get_editable_roles() so roles added by other plugins/themes are
+	 * included automatically. Administrator always has access regardless of
+	 * whether it is checked (enforced by AccessControlManager).
 	 *
 	 * @since 1.0.0
 	 *
@@ -64,11 +64,6 @@ class WpRoleProvider extends AbstractProvider {
 		$options        = array();
 
 		foreach ( $editable_roles as $role_slug => $role_data ) {
-			// Administrators bypass all rules — skip to avoid confusion.
-			if ( 'administrator' === $role_slug ) {
-				continue;
-			}
-
 			$options[] = array(
 				'id'    => $role_slug,
 				'label' => translate_user_role( $role_data['name'] ),

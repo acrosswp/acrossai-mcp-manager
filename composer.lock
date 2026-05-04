@@ -571,16 +571,20 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/WPBoilerplate/wpb-access-control.git",
-                "reference": "76bda0fafc9303239608109b36be73b7a3216775"
+                "reference": "95165efe3feadb07cc3b85c8686343a10050a1bf"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/76bda0fafc9303239608109b36be73b7a3216775",
-                "reference": "76bda0fafc9303239608109b36be73b7a3216775",
+                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/95165efe3feadb07cc3b85c8686343a10050a1bf",
+                "reference": "95165efe3feadb07cc3b85c8686343a10050a1bf",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.4"
+            },
+            "require-dev": {
+                "brain/monkey": "^2.6",
+                "phpunit/phpunit": "^9.6"
             },
             "default-branch": true,
             "type": "library",
@@ -588,6 +592,16 @@
                 "psr-4": {
                     "WPBoilerplate\\AccessControl\\": "src/"
                 }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "WPBoilerplate\\AccessControl\\Tests\\": "tests/"
+                }
+            },
+            "scripts": {
+                "test": [
+                    "phpunit"
+                ]
             },
             "license": [
                 "GPL-2.0-or-later"
@@ -611,7 +625,7 @@
                 "issues": "https://github.com/WPBoilerplate/wpb-access-control/issues",
                 "source": "https://github.com/WPBoilerplate/wpb-access-control"
             },
-            "time": "2026-05-02T09:38:37+00:00"
+            "time": "2026-05-04T04:37:25+00:00"
         }
     ],
     "packages-dev": [],
