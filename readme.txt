@@ -4,11 +4,11 @@ Tags: mcp, ai, copilot, vscode, claude
 Requires at least: 6.9
 Requires PHP: 8.0
 Tested up to: 7.0
-Stable tag: 1.0.0
+Stable tag: 0.0.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Connect WordPress to MCP clients like VS Code, Claude, GitHub Copilot, and ChatGPT using secure application passwords, with an optional experimental direct Claude Connectors mode.
+Connect WordPress to MCP clients like VS Code, Claude, and Copilot using secure application passwords and OAuth authentication.
 
 The plugin uses the standard `@automattic/mcp-wordpress-remote@latest` package with WordPress Application Passwords for the default remote flow. It also includes an optional experimental direct Claude Connectors mode backed by a WordPress-hosted OAuth approval flow.
 
@@ -181,7 +181,7 @@ No additional software is needed on the WordPress side. Your MCP clients (VS Cod
 
 == Changelog ==
 
-= 1.0.0 =
+= 0.0.1 =
 * Initial release
 * Support for VS Code, Claude, GitHub Copilot, ChatGPT Codex, and custom clients
 * Format #1 (Automattic-recommended) MCP configuration

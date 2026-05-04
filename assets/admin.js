@@ -340,11 +340,25 @@
 					if ( ! target || ! target.value ) {
 						return;
 					}
-					navigator.clipboard.writeText( target.value ).then( () => {
+
+					const showSuccess = () => {
 						const original = button.textContent;
 						button.textContent = '✓ Copied!';
 						setTimeout( () => { button.textContent = original; }, 2000 );
-					} );
+					};
+
+					if ( navigator.clipboard && navigator.clipboard.writeText ) {
+						navigator.clipboard.writeText( target.value ).then( showSuccess );
+					} else {
+						// Fallback for older browsers or non-HTTPS contexts.
+						try {
+							target.select();
+							document.execCommand( 'copy' );
+							showSuccess();
+						} catch ( err ) {
+							console.error( 'Failed to copy to clipboard:', err );
+						}
+					}
 				} );
 			} );
 		},

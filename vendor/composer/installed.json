@@ -590,18 +590,18 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/WPBoilerplate/wpb-access-control.git",
-                "reference": "3346ddcd6953a43ae1ccb2f5a6f0aafc5294ba31"
+                "reference": "76bda0fafc9303239608109b36be73b7a3216775"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/3346ddcd6953a43ae1ccb2f5a6f0aafc5294ba31",
-                "reference": "3346ddcd6953a43ae1ccb2f5a6f0aafc5294ba31",
+                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/76bda0fafc9303239608109b36be73b7a3216775",
+                "reference": "76bda0fafc9303239608109b36be73b7a3216775",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.4"
             },
-            "time": "2026-05-02T09:19:33+00:00",
+            "time": "2026-05-02T09:38:37+00:00",
             "default-branch": true,
             "type": "library",
             "installation-source": "dist",

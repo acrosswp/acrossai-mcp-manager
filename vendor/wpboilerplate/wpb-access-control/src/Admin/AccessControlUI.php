@@ -164,15 +164,9 @@ class AccessControlUI {
 			: __( 'Control which users are allowed to access this resource. Administrators always have access regardless of this setting.', 'wpb-access-control' );
 
 		// Resolve current stored config.
-		$raw_ac    = AccessControlTable::get( $namespace, $key );
-		$ac_config = array( 'type' => '', 'options' => array() );
-		if ( '' !== $raw_ac ) {
-			$decoded = json_decode( $raw_ac, true );
-			if ( is_array( $decoded ) ) {
-				$ac_config['type']    = sanitize_key( $decoded['type'] ?? '' );
-				$ac_config['options'] = array_map( 'sanitize_key', (array) ( $decoded['options'] ?? array() ) );
-			}
-		}
+		$row       = AccessControlTable::get( $namespace, $key );
+		$ac_key    = $row['key'];
+		$ac_values = $row['value'];
 
 		$providers = $this->manager->get_providers();
 		?>
@@ -211,16 +205,16 @@ class AccessControlUI {
 								<select name="ac_type"
 								        id="<?php echo esc_attr( $form_id . '-type' ); ?>"
 								        class="regular-text wpb-ac-type-select">
-									<option value="" <?php selected( $ac_config['type'], '' ); ?>>
+									<option value="" <?php selected( $ac_key, '' ); ?>>
 										<?php esc_html_e( 'No user access added by admin', 'wpb-access-control' ); ?>
 									</option>
-									<option value="everyone" <?php selected( $ac_config['type'], 'everyone' ); ?>>
+									<option value="everyone" <?php selected( $ac_key, 'everyone' ); ?>>
 										<?php esc_html_e( 'Everyone (no restriction)', 'wpb-access-control' ); ?>
 									</option>
 									<?php foreach ( $providers as $provider_id => $provider ) : ?>
 										<?php if ( $provider->is_available() ) : ?>
 											<option value="<?php echo esc_attr( $provider_id ); ?>"
-											        <?php selected( $ac_config['type'], $provider_id ); ?>>
+											        <?php selected( $ac_key, $provider_id ); ?>>
 												<?php echo esc_html( $provider->get_label() ); ?>
 											</option>
 										<?php endif; ?>
@@ -233,10 +227,10 @@ class AccessControlUI {
 						<?php foreach ( $providers as $provider_id => $provider ) : ?>
 							<?php if ( ! $provider->is_available() ) { continue; } ?>
 							<tr class="wpb-ac-options-row wpb-ac-options-<?php echo esc_attr( $provider_id ); ?>"
-							    style="<?php echo $ac_config['type'] === $provider_id ? '' : 'display:none'; ?>">
+							    style="<?php echo $ac_key === $provider_id ? '' : 'display:none'; ?>">
 								<th scope="row"><?php echo esc_html( $provider->get_label() ); ?></th>
 								<td>
-									<?php $provider->render_options( $ac_config['options'], $form_id ); ?>
+									<?php $provider->render_options( $ac_values, $form_id ); ?>
 								</td>
 							</tr>
 						<?php endforeach; ?>
@@ -302,34 +296,33 @@ class AccessControlUI {
 	}
 
 	/**
-	 * Extract and return a sanitized access-control JSON string from POST data.
+	 * Extract and return the access-control rule from POST data.
 	 *
 	 * Reads ac_type and ac_options[] from the supplied array (pass $_POST).
 	 * Used internally by ajax_save(), but remains public so consuming plugins
 	 * can reuse the same extraction logic in custom save flows when needed.
-	 * Does NOT call sanitize_key() on options; AccessControlTable::sanitize()
-	 * (called internally by update()) handles that to avoid double-processing.
+	 * Sanitization of the key and option values is handled inside
+	 * AccessControlTable::update() to avoid double-processing.
 	 *
-	 * @since 1.2.0
+	 * @since 2.0.0
 	 *
 	 * @param array $post Raw POST data (typically $_POST).
 	 *
-	 * @return string Sanitized JSON string, or '' for "everyone / no restriction".
+	 * @return array{key: string, value: string[]}
 	 */
-	public static function extract_posted_config( array $post ): string {
-		$ac_type = isset( $post['ac_type'] ) ? sanitize_key( wp_unslash( $post['ac_type'] ) ) : 'everyone';
+	public static function extract_posted_config( array $post ): array {
+		$ac_key = isset( $post['ac_type'] ) ? sanitize_key( wp_unslash( $post['ac_type'] ) ) : '';
 
-		if ( '' === $ac_type || 'everyone' === $ac_type ) {
-			return '';
+		if ( '' === $ac_key || 'everyone' === $ac_key ) {
+			return array( 'key' => $ac_key, 'value' => array() );
 		}
 
 		$ac_options = array();
 		if ( isset( $post['ac_options'] ) && is_array( $post['ac_options'] ) ) {
-			// Cast to string; AccessControlTable::sanitize() will sanitize_key() them.
 			$ac_options = array_values( array_map( 'strval', wp_unslash( (array) $post['ac_options'] ) ) );
 		}
 
-		return wp_json_encode( array( 'type' => $ac_type, 'options' => $ac_options ) ) ?: '';
+		return array( 'key' => $ac_key, 'value' => $ac_options );
 	}
 
 	// -------------------------------------------------------------------------
@@ -412,8 +405,8 @@ class AccessControlUI {
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
-		$access_control = self::extract_posted_config( $_POST );
-		$updated        = AccessControlTable::update( $namespace, $key, $access_control );
+		$config  = self::extract_posted_config( $_POST );
+		$updated = AccessControlTable::update( $namespace, $key, $config['key'], $config['value'] );
 
 		if ( ! $updated ) {
 			wp_send_json_error( array( 'message' => __( 'Failed to save access control.', 'wpb-access-control' ) ), 500 );
@@ -422,14 +415,15 @@ class AccessControlUI {
 		/**
 		 * Fires after access control is saved successfully via the built-in UI.
 		 *
-		 * @since 1.2.0
+		 * @since 2.0.0
 		 *
-		 * @param string $namespace      Saved resource namespace.
-		 * @param string $key            Saved resource key.
-		 * @param string $access_control Stored JSON string, or '' for everyone.
-		 * @param int    $user_id        Current WordPress user ID.
+		 * @param string   $namespace  Saved resource namespace.
+		 * @param string   $key        Saved resource key.
+		 * @param string   $ac_key     Rule type slug ('', 'everyone', 'wp_role', 'wp_user', …).
+		 * @param string[] $ac_options Rule options (role slugs, user ID strings, etc.).
+		 * @param int      $user_id    Current WordPress user ID.
 		 */
-		do_action( 'wpb_access_control_saved', $namespace, $key, $access_control, $user_id );
+		do_action( 'wpb_access_control_saved', $namespace, $key, $config['key'], $config['value'], $user_id );
 
 		wp_send_json_success(
 			array(

@@ -51,7 +51,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class MCPServerTable {
 
 	const TABLE_NAME        = 'acrossai_mcp_servers';
-	const DB_VERSION        = '1.8.0';
+	const DB_VERSION        = '0.0.1';
 	const DB_VERSION_OPTION = 'acrossai_mcp_manager_db_version';
 
 	/**
@@ -166,8 +166,12 @@ class MCPServerTable {
 			$select_cols .= ', access_control';
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$rows = $wpdb->get_results( "SELECT {$select_cols} FROM {$table_name}", ARRAY_A );
+		$query = sprintf( 'SELECT %s FROM %%i', $select_cols );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+		$rows = $wpdb->get_results(
+			$wpdb->prepare( $query, $table_name ),
+			ARRAY_A
+		);
 
 		if ( empty( $rows ) ) {
 			return;

@@ -6,20 +6,23 @@
  * CRUD operations. Every consuming plugin calls maybe_create_table() on
  * activation and plugins_loaded so the table is always up to date.
  *
- * Table schema (v1.0.0)
+ * Table schema (v2.0.0)
  * ---------------------
- *   id              BIGINT PK AI
- *   namespace       VARCHAR(100)  — REST namespace or any product-scoped prefix
- *   key             VARCHAR(255)  — resource identifier within that namespace
- *   access_control  TEXT          — JSON config or ''
- *   created_at      DATETIME
- *   updated_at      DATETIME
+ *   id                    BIGINT PK AI
+ *   namespace             VARCHAR(100)  — REST namespace or any product-scoped prefix
+ *   key                   VARCHAR(255)  — resource identifier within that namespace
+ *   access_control_key    VARCHAR(100)  — rule type slug: '', 'everyone', 'wp_role', 'wp_user', …
+ *   access_control_value  TEXT          — JSON-encoded options array, or ''
+ *   created_at            DATETIME
+ *   updated_at            DATETIME
  *   UNIQUE (namespace, key)
  *
- * JSON config format
- * ------------------
- *   { "type": "wp_role", "options": ["editor", "author"] }
- *   An empty string means "no restriction — allow everyone".
+ * Rule storage convention
+ * -----------------------
+ *   access_control_key = ''         , access_control_value = ''   → no user access added by admin
+ *   access_control_key = 'everyone' , access_control_value = ''   → everyone (no restriction)
+ *   access_control_key = 'wp_role'  , access_control_value = '["editor","author"]'
+ *   access_control_key = 'wp_user'  , access_control_value = '["1","42"]'
  *
  * Caching
  * -------
@@ -45,7 +48,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class AccessControlTable {
 
 	const TABLE_NAME        = 'wpb_access_control';
-	const DB_VERSION        = '1.0.0';
+	const DB_VERSION        = '2.0.0';
 	const DB_VERSION_OPTION = 'wpb_access_control_db_version';
 	const CACHE_GROUP       = 'wpb_access_control';
 	const NAMESPACE_LENGTH  = 100;
@@ -68,11 +71,10 @@ class AccessControlTable {
 	}
 
 	/**
-	 * Create or upgrade the table (idempotent).
+	 * Create the table (idempotent via dbDelta).
 	 *
-	 * Runs dbDelta unconditionally and stores the current DB_VERSION so
-	 * subsequent calls to maybe_create_table() are no-ops until the version
-	 * constant changes.
+	 * Stores DB_VERSION so subsequent maybe_create_table() calls are no-ops
+	 * until the version constant changes.
 	 *
 	 * @since 1.0.0
 	 *
@@ -89,7 +91,8 @@ class AccessControlTable {
 			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
 			namespace VARCHAR(" . self::NAMESPACE_LENGTH . ") NOT NULL DEFAULT '',
 			`key` VARCHAR(" . self::KEY_LENGTH . ") NOT NULL DEFAULT '',
-			access_control TEXT NOT NULL DEFAULT '',
+			access_control_key VARCHAR(100) NOT NULL DEFAULT '',
+			access_control_value TEXT NOT NULL,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
@@ -103,10 +106,13 @@ class AccessControlTable {
 	}
 
 	/**
-	 * Run create_table() only when the stored schema version is outdated.
+	 * Drop and recreate the table when the stored schema version is outdated.
 	 *
-	 * Call this on plugins_loaded AND on the activation hook so both fresh
-	 * installs and library version upgrades are handled correctly.
+	 * Dropping ensures the old `access_control` column (v1.x) is removed, since
+	 * dbDelta never drops columns. Existing rows are not migrated — callers must
+	 * treat all resources as unconfigured after an upgrade.
+	 *
+	 * Call this on plugins_loaded AND on the activation hook.
 	 *
 	 * @since 1.0.0
 	 *
@@ -114,6 +120,10 @@ class AccessControlTable {
 	 */
 	public static function maybe_create_table(): void {
 		if ( get_option( self::DB_VERSION_OPTION ) !== self::DB_VERSION ) {
+			global $wpdb;
+			$table_name = self::get_table_name();
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "DROP TABLE IF EXISTS `{$table_name}`" );
 			self::create_table();
 		}
 	}
@@ -123,24 +133,24 @@ class AccessControlTable {
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Return the stored access_control JSON for a namespace + key pair.
+	 * Return the stored access rule for a namespace + key pair.
 	 *
-	 * Returns an empty string when no row exists (treated as "everyone" by
-	 * AccessControlManager::user_has_access()).
+	 * Returns ['key' => '', 'value' => []] when no row exists, which the
+	 * AccessControlManager treats as "no user access added by admin".
 	 *
-	 * @since 1.0.0
+	 * @since 2.0.0
 	 *
 	 * @param string $namespace Resource namespace (e.g. 'mcp', 'procureco/v1').
-	 * @param string $key       Resource key within that namespace (e.g. 'default-server').
+	 * @param string $key       Resource key within that namespace.
 	 *
-	 * @return string JSON config string or ''.
+	 * @return array{key: string, value: string[]}
 	 */
-	public static function get( string $namespace, string $key ): string {
+	public static function get( string $namespace, string $key ): array {
 		$cache_key = self::cache_key( $namespace, $key );
 		$cached    = wp_cache_get( $cache_key, self::CACHE_GROUP );
 
 		if ( false !== $cached ) {
-			return (string) $cached;
+			return (array) $cached;
 		}
 
 		global $wpdb;
@@ -148,51 +158,66 @@ class AccessControlTable {
 		$table_name = self::get_table_name();
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-		$value = $wpdb->get_var(
+		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT access_control FROM `{$table_name}` WHERE namespace = %s AND `key` = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT access_control_key, access_control_value FROM `{$table_name}` WHERE namespace = %s AND `key` = %s LIMIT 1", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$namespace,
 				$key
 			)
 		);
 
-		$value = ( null !== $value ) ? (string) $value : '';
+		if ( null === $row ) {
+			$result = array( 'key' => '', 'value' => array() );
+		} else {
+			$decoded = json_decode( (string) $row->access_control_value, true );
+			$result  = array(
+				'key'   => (string) $row->access_control_key,
+				'value' => is_array( $decoded ) ? array_values( $decoded ) : array(),
+			);
+		}
 
-		wp_cache_set( $cache_key, $value, self::CACHE_GROUP );
+		wp_cache_set( $cache_key, $result, self::CACHE_GROUP );
 
-		return $value;
+		return $result;
 	}
 
 	/**
-	 * Insert or update the access_control value for a namespace + key pair.
+	 * Insert or update the access rule for a namespace + key pair.
 	 *
 	 * Uses INSERT … ON DUPLICATE KEY UPDATE so callers do not need to check
-	 * whether a row already exists. The value is sanitized before storing —
-	 * invalid JSON is replaced with an empty string (everyone).
+	 * whether a row already exists. Both values are sanitized before storing.
 	 *
-	 * @since 1.0.0
+	 * @since 2.0.0
 	 *
-	 * @param string $namespace      Resource namespace.
-	 * @param string $key            Resource key.
-	 * @param string $access_control JSON config or '' for no restriction.
+	 * @param string   $namespace   Resource namespace.
+	 * @param string   $key         Resource key.
+	 * @param string   $ac_key      Rule type slug ('', 'everyone', 'wp_role', 'wp_user', …).
+	 * @param string[] $ac_options  Option values (role slugs, user ID strings, etc.).
 	 *
 	 * @return bool True on success, false on DB error.
 	 */
-	public static function update( string $namespace, string $key, string $access_control ): bool {
+	public static function update( string $namespace, string $key, string $ac_key, array $ac_options ): bool {
 		global $wpdb;
 
-		$access_control = self::sanitize( $access_control );
-		$table_name     = self::get_table_name();
+		$normalized   = self::normalize_input( $ac_key, $ac_options );
+		$table_name   = self::get_table_name();
+		$stored_value = empty( $normalized['value'] )
+			? ''
+			: ( wp_json_encode( $normalized['value'] ) ?: '' );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
 		$result = $wpdb->query(
 			$wpdb->prepare(
-				"INSERT INTO `{$table_name}` (namespace, `key`, access_control)
-				 VALUES (%s, %s, %s)
-				 ON DUPLICATE KEY UPDATE access_control = VALUES(access_control), updated_at = NOW()", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"INSERT INTO `{$table_name}` (namespace, `key`, access_control_key, access_control_value)
+				 VALUES (%s, %s, %s, %s)
+				 ON DUPLICATE KEY UPDATE
+				     access_control_key   = VALUES(access_control_key),
+				     access_control_value = VALUES(access_control_value),
+				     updated_at           = NOW()", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 				$namespace,
 				$key,
-				$access_control
+				$normalized['key'],
+				$stored_value
 			)
 		);
 
@@ -202,9 +227,9 @@ class AccessControlTable {
 	}
 
 	/**
-	 * Delete the access_control row for a namespace + key pair.
+	 * Delete the access rule row for a namespace + key pair.
 	 *
-	 * After deletion, get() returns '' (everyone) for that pair.
+	 * After deletion, get() returns ['key' => '', 'value' => []] for that pair.
 	 *
 	 * @since 1.0.0
 	 *
@@ -260,53 +285,30 @@ class AccessControlTable {
 	}
 
 	// -------------------------------------------------------------------------
-	// Sanitization
+	// Internal helpers
 	// -------------------------------------------------------------------------
 
 	/**
-	 * Validate and normalize an access_control JSON string before storing.
+	 * Sanitize and normalize the rule type and options before storing.
 	 *
-	 * Accepts:
-	 *   - '' (empty string) — stored as-is; treated as "everyone".
-	 *   - JSON: { "type": "wp_role", "options": ["editor"] }
+	 * @since 2.0.0
 	 *
-	 * Any value that is not valid JSON, not an object, or missing `type` is
-	 * normalised to '' so no resource is accidentally locked.
+	 * @param string   $key     Rule type slug from user input.
+	 * @param string[] $options Option values from user input.
 	 *
-	 * @since 1.0.0
-	 *
-	 * @param string $raw Raw value from user input.
-	 *
-	 * @return string Sanitized JSON string or ''.
+	 * @return array{key: string, value: string[]}
 	 */
-	public static function sanitize( string $raw ): string {
-		$raw = trim( $raw );
+	private static function normalize_input( string $key, array $options ): array {
+		$key     = sanitize_key( $key );
+		$options = array_values( array_map( 'sanitize_key', $options ) );
 
-		if ( '' === $raw ) {
-			return '';
+		// These states never carry options.
+		if ( '' === $key || 'everyone' === $key ) {
+			$options = array();
 		}
 
-		$decoded = json_decode( $raw, true );
-
-		if ( ! is_array( $decoded ) || ! isset( $decoded['type'] ) ) {
-			return '';
-		}
-
-		$type    = sanitize_key( $decoded['type'] );
-		$options = array();
-
-		if ( isset( $decoded['options'] ) && is_array( $decoded['options'] ) ) {
-			$options = array_values( array_map( 'sanitize_key', $decoded['options'] ) );
-		}
-
-		$encoded = wp_json_encode( array( 'type' => $type, 'options' => $options ) );
-
-		return $encoded ?: '';
+		return array( 'key' => $key, 'value' => $options );
 	}
-
-	// -------------------------------------------------------------------------
-	// Helpers
-	// -------------------------------------------------------------------------
 
 	/**
 	 * Build the object-cache key for a namespace + key pair.

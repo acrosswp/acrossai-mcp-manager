@@ -11,6 +11,10 @@
 
 namespace ACROSSAI_MCP_MANAGER\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 /**
  * Utility class for rendering plugin configuration output.
  *

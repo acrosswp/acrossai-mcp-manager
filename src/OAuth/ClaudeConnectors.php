@@ -453,8 +453,8 @@ class ClaudeConnectors {
 				'client_id'         => $data['client_id'] ?? '',
 				'resource_url'      => $data['resource_url'] ?? '',
 				'scope'             => $data['scope'] ?? '',
-				'request_method'    => $_SERVER['REQUEST_METHOD'] ?? '',
-				'request_route'     => $_SERVER['REQUEST_URI'] ?? '',
+				'request_method'    => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '',
+				'request_route'     => isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '',
 				'access_token_hash' => $this->hash_value( $token ),
 				'details'           => array(
 					'message' => 'Bearer token resolved to a WordPress user.',
@@ -561,7 +561,7 @@ class ClaudeConnectors {
 			'authorization_server_metadata',
 			'success',
 			array(
-				'request_method' => $_SERVER['REQUEST_METHOD'] ?? '',
+				'request_method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '',
 				'request_route'  => '/.well-known/oauth-authorization-server',
 				'response_code'  => 200,
 				'details'        => array(
@@ -610,7 +610,7 @@ class ClaudeConnectors {
 				'failed',
 				array(
 					'resource_url'   => $resource,
-					'request_method' => $_SERVER['REQUEST_METHOD'] ?? '',
+					'request_method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '',
 					'request_route'  => '/.well-known/oauth-protected-resource',
 					'response_code'  => 404,
 					'failure_code'   => 'invalid_target',
@@ -637,7 +637,7 @@ class ClaudeConnectors {
 					'server_id'      => (int) $server_row['id'],
 					'server_slug'    => $server_row['server_slug'] ?? '',
 					'resource_url'   => $resource,
-					'request_method' => $_SERVER['REQUEST_METHOD'] ?? '',
+					'request_method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '',
 					'request_route'  => '/.well-known/oauth-protected-resource',
 					'response_code'  => 503,
 					'failure_code'   => 'server_not_configured',
@@ -663,7 +663,7 @@ class ClaudeConnectors {
 				'server_id'      => (int) $server_row['id'],
 				'server_slug'    => $server_row['server_slug'] ?? '',
 				'resource_url'   => $resource,
-				'request_method' => $_SERVER['REQUEST_METHOD'] ?? '',
+				'request_method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '',
 				'request_route'  => '/.well-known/oauth-protected-resource',
 				'response_code'  => 200,
 				'details'        => array(
@@ -721,7 +721,7 @@ class ClaudeConnectors {
 					'client_id'      => isset( $_GET['client_id'] ) ? sanitize_text_field( wp_unslash( $_GET['client_id'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification
 					'resource_url'   => isset( $_GET['resource'] ) ? esc_url_raw( wp_unslash( $_GET['resource'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification
 					'scope'          => isset( $_GET['scope'] ) ? sanitize_text_field( wp_unslash( $_GET['scope'] ) ) : '', // phpcs:ignore WordPress.Security.NonceVerification
-					'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
+					'request_method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET',
 					'request_route'  => self::AUTHORIZE_PATH,
 					'response_code'  => 302,
 					'details'        => array(
@@ -772,7 +772,7 @@ class ClaudeConnectors {
 					'client_id'      => (string) $oauth_request->query( 'client_id', $oauth_request->request( 'client_id' ) ),
 					'resource_url'   => $resource,
 					'scope'          => (string) $oauth_request->query( 'scope', $oauth_request->request( 'scope', 'mcp' ) ),
-					'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
+					'request_method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET',
 					'request_route'  => self::AUTHORIZE_PATH,
 					'response_code'  => 'approve' === $action ? 302 : 302,
 					'details'        => array(
@@ -801,7 +801,7 @@ class ClaudeConnectors {
 				'client_id'      => (string) $oauth_request->query( 'client_id', $oauth_request->request( 'client_id' ) ),
 				'resource_url'   => $resource,
 				'scope'          => (string) $oauth_request->query( 'scope', $oauth_request->request( 'scope', 'mcp' ) ),
-				'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
+				'request_method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : 'GET',
 				'request_route'  => self::AUTHORIZE_PATH,
 				'response_code'  => 200,
 				'details'        => array(
@@ -896,7 +896,7 @@ class ClaudeConnectors {
 				'client_id'      => $client_id,
 				'resource_url'   => (string) $request->query( 'resource', $request->request( 'resource' ) ),
 				'scope'          => (string) $request->query( 'scope', $request->request( 'scope', '' ) ),
-				'request_method' => $_SERVER['REQUEST_METHOD'] ?? '',
+				'request_method' => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '',
 				'request_route'  => self::AUTHORIZE_PATH,
 				'response_code'  => 400,
 				'failure_code'   => sanitize_key( $error ),
@@ -1208,8 +1208,8 @@ class ClaudeConnectors {
 				'status'                  => $status,
 				'resource_url'            => $context['resource_url'] ?? '',
 				'scope'                   => $context['scope'] ?? '',
-				'request_method'          => $context['request_method'] ?? ( $_SERVER['REQUEST_METHOD'] ?? '' ),
-				'request_route'           => $context['request_route'] ?? ( $_SERVER['REQUEST_URI'] ?? '' ),
+				'request_method'          => $context['request_method'] ?? ( isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '' ),
+				'request_route'           => $context['request_route'] ?? ( isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '' ),
 				'response_code'           => isset( $context['response_code'] ) ? (int) $context['response_code'] : 0,
 				'failure_code'            => $context['failure_code'] ?? '',
 				'authorization_code_hash' => $context['authorization_code_hash'] ?? '',
@@ -1244,8 +1244,8 @@ class ClaudeConnectors {
 				'client_id'         => $this->current_access_token_context['client_id'] ?? '',
 				'resource_url'      => self::get_resource_url_for_server( $row ),
 				'scope'             => $this->current_access_token_context['scope'] ?? '',
-				'request_method'    => $_SERVER['REQUEST_METHOD'] ?? '',
-				'request_route'     => $_SERVER['REQUEST_URI'] ?? '',
+				'request_method'    => isset( $_SERVER['REQUEST_METHOD'] ) ? sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) : '',
+				'request_route'     => isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '',
 				'response_code'     => $user_id ? 403 : 401,
 				'access_token_hash' => $this->current_access_token ? $this->hash_value( $this->current_access_token ) : '',
 				'failure_code'      => 'access_denied',
@@ -1307,11 +1307,11 @@ class ClaudeConnectors {
 	 */
 	private function get_authorization_header() {
 		if ( isset( $_SERVER['HTTP_AUTHORIZATION'] ) ) {
-			return (string) $_SERVER['HTTP_AUTHORIZATION'];
+			return sanitize_text_field( wp_unslash( $_SERVER['HTTP_AUTHORIZATION'] ) );
 		}
 
 		if ( isset( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) ) {
-			return (string) $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+			return sanitize_text_field( wp_unslash( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) );
 		}
 
 		if ( function_exists( 'apache_request_headers' ) ) {
@@ -1411,7 +1411,7 @@ class ClaudeConnectors {
 	 * @return bool
 	 */
 	private function is_current_request_for_mcp_server() {
-		$uri_path = wp_parse_url( $_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH );
+		$uri_path = wp_parse_url( isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '', PHP_URL_PATH );
 
 		if ( ! is_string( $uri_path ) || '' === $uri_path ) {
 			return false;

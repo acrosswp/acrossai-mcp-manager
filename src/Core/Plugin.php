@@ -8,6 +8,10 @@
 
 namespace ACROSSAI_MCP_MANAGER\Core;
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
 use WPBoilerplate\AccessControl\Admin\AccessControlUI;
 use WPBoilerplate\AccessControl\AccessControlManager;
 use WPBoilerplate\AccessControl\AccessControlTable;

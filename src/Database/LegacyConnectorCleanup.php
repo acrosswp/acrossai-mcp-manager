@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class LegacyConnectorCleanup {
 
-	const DB_VERSION        = '1.0.0';
+	const DB_VERSION        = '0.0.1';
 	const DB_VERSION_OPTION = 'acrossai_mcp_legacy_connector_cleanup_version';
 
 	/**

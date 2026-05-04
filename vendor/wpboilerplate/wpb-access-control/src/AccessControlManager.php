@@ -35,10 +35,10 @@
  *
  * Access hierarchy (evaluated by user_has_access)
  * ------------------------------------------------
- *   1. access_control empty or type = 'everyone' → allow.
+ *   1. access_control_key empty or 'everyone'    → allow.
  *   2. User has manage_options (administrator)   → always allow.
  *   3. User not authenticated (id = 0)           → deny.
- *   4. No provider found for the configured type → deny.
+ *   4. No provider found for the configured key  → deny.
  *   5. provider->user_has_access()               → allow or deny.
  *
  * @package WPBoilerplate\AccessControl
@@ -186,11 +186,12 @@ class AccessControlManager {
 	 * @return bool True when access is granted.
 	 */
 	public function user_has_access( int $user_id, string $namespace, string $key ): bool {
-		$raw       = AccessControlTable::get( $namespace, $key );
-		$ac_config = $this->parse_access_control( $raw );
+		$row     = AccessControlTable::get( $namespace, $key );
+		$ac_key  = $row['key'];
+		$options = $row['value'];
 
-		// No restriction configured → allow.
-		if ( self::TYPE_EVERYONE === $ac_config['type'] || '' === $ac_config['type'] ) {
+		// No restriction configured (empty or everyone) → allow.
+		if ( '' === $ac_key || self::TYPE_EVERYONE === $ac_key ) {
 			return true;
 		}
 
@@ -207,73 +208,31 @@ class AccessControlManager {
 			 *
 			 * @since 1.0.0
 			 *
-			 * @param int    $user_id   The requesting user ID (0 = unauthenticated).
-			 * @param string $namespace Resource namespace.
-			 * @param string $key       Resource key.
-			 * @param array  $ac_config Parsed access control config.
+			 * @param int      $user_id   The requesting user ID (0 = unauthenticated).
+			 * @param string   $namespace Resource namespace.
+			 * @param string   $key       Resource key.
+			 * @param string   $ac_key    Rule type slug.
+			 * @param string[] $options   Rule options (role slugs, user IDs, etc.).
 			 */
-			do_action( 'wpb_access_control_denied', $user_id, $namespace, $key, $ac_config );
+			do_action( 'wpb_access_control_denied', $user_id, $namespace, $key, $ac_key, $options );
 
 			return false;
 		}
 
-		$provider = $this->get_provider( $ac_config['type'] );
+		$provider = $this->get_provider( $ac_key );
 
 		// Unknown provider type → deny.
 		if ( null === $provider ) {
-			do_action( 'wpb_access_control_denied', $user_id, $namespace, $key, $ac_config );
+			do_action( 'wpb_access_control_denied', $user_id, $namespace, $key, $ac_key, $options );
 			return false;
 		}
 
-		$selected_options = (array) ( $ac_config['options'] ?? array() );
-		$allowed          = $provider->user_has_access( $user_id, $selected_options );
+		$allowed = $provider->user_has_access( $user_id, $options );
 
 		if ( ! $allowed ) {
-			do_action( 'wpb_access_control_denied', $user_id, $namespace, $key, $ac_config );
+			do_action( 'wpb_access_control_denied', $user_id, $namespace, $key, $ac_key, $options );
 		}
 
 		return $allowed;
-	}
-
-	// -------------------------------------------------------------------------
-	// Internal helpers
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Decode an access_control JSON string into a normalised array.
-	 *
-	 * Falls back to type = 'everyone' for empty or malformed input so that
-	 * unconfigured resources are never accidentally locked out.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @param string $raw Raw JSON string from AccessControlTable::get().
-	 *
-	 * @return array{type: string, options: string[]}
-	 */
-	private function parse_access_control( string $raw ): array {
-		$defaults = array(
-			'type'    => self::TYPE_EVERYONE,
-			'options' => array(),
-		);
-
-		if ( '' === $raw ) {
-			return $defaults;
-		}
-
-		$decoded = json_decode( $raw, true );
-
-		if ( ! is_array( $decoded ) ) {
-			return $defaults;
-		}
-
-		return array(
-			'type'    => isset( $decoded['type'] ) && is_string( $decoded['type'] )
-				? sanitize_key( $decoded['type'] )
-				: self::TYPE_EVERYONE,
-			'options' => isset( $decoded['options'] ) && is_array( $decoded['options'] )
-				? array_map( 'sanitize_key', $decoded['options'] )
-				: array(),
-		);
 	}
 }

@@ -148,7 +148,7 @@ class Settings {
 		}
 
 		// ── create (POST) ────────────────────────────────────────────────────────
-		if ( 'create' === $action && 'POST' === $_SERVER['REQUEST_METHOD'] ) {
+		if ( 'create' === $action && isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) {
 			check_admin_referer( 'acrossai_mcp_create_server' );
 
 			$name      = isset( $_POST['server_name'] ) ? sanitize_text_field( wp_unslash( $_POST['server_name'] ) ) : '';
@@ -225,7 +225,7 @@ class Settings {
 		}
 
 		// ── update (POST) ────────────────────────────────────────────────────────
-		if ( 'update' === $action && 'POST' === $_SERVER['REQUEST_METHOD'] ) {
+		if ( 'update' === $action && isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) {
 			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
 
 			check_admin_referer( 'acrossai_mcp_update_' . $server_id );
@@ -283,7 +283,7 @@ class Settings {
 		}
 
 		// ── save_access_control (POST) ────────────────────────────────────────────
-		if ( 'save_access_control' === $action && 'POST' === $_SERVER['REQUEST_METHOD'] ) {
+		if ( 'save_access_control' === $action && isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) {
 			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
 
 			check_admin_referer( 'acrossai_mcp_access_control_' . $server_id );
@@ -314,7 +314,7 @@ class Settings {
 		}
 
 		// ── save_claude_connector (POST) ────────────────────────────────────────
-		if ( 'save_claude_connector' === $action && 'POST' === $_SERVER['REQUEST_METHOD'] ) {
+		if ( 'save_claude_connector' === $action && isset( $_SERVER['REQUEST_METHOD'] ) && 'POST' === sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) {
 			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
 
 			check_admin_referer( 'acrossai_mcp_claude_connector_' . $server_id );
@@ -2551,7 +2551,8 @@ class Settings {
 				<a
 					href="<?php echo esc_url( $delete_url ); ?>"
 					class="button acrossai-btn-delete"
-					onclick="return confirm('<?php echo esc_js( sprintf( __( 'Delete "%s" permanently? This cannot be undone.', 'acrossai-mcp-manager' ), $server['server_name'] ) ); ?>')">
+					onclick="return confirm('<?php // translators: %s: MCP server name.
+					echo esc_js( sprintf( __( 'Delete "%s" permanently? This cannot be undone.', 'acrossai-mcp-manager' ), $server['server_name'] ) ); ?>')">
 					<?php esc_html_e( 'Delete Server', 'acrossai-mcp-manager' ); ?>
 				</a>
 

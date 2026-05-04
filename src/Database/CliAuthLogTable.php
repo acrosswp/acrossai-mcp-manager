@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class CliAuthLogTable {
 
 	const TABLE_NAME        = 'acrossai_mcp_cli_auth_logs';
-	const DB_VERSION        = '1.0.0';
+	const DB_VERSION        = '0.0.1';
 	const DB_VERSION_OPTION = 'acrossai_mcp_cli_auth_log_db_version';
 
 	/**
@@ -158,12 +158,15 @@ class CliAuthLogTable {
 	public static function count_by_server( $server_id ) {
 		global $wpdb;
 
-		return (int) $wpdb->get_var(
-			$wpdb->prepare(
-				'SELECT COUNT(*) FROM ' . self::get_table_name() . ' WHERE server_id = %d',
-				absint( $server_id )
-			)
+		$table = self::get_table_name();
+
+		$query = $wpdb->prepare(
+			'SELECT COUNT(*) FROM %i WHERE server_id = %d',
+			$table,
+			absint( $server_id )
 		);
+
+		return (int) $wpdb->get_var( $query );
 	}
 
 	/**
@@ -182,15 +185,17 @@ class CliAuthLogTable {
 		$page     = max( 1, absint( $page ) );
 		$offset   = ( $page - 1 ) * $per_page;
 
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT * FROM ' . self::get_table_name() . ' WHERE server_id = %d ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d',
-				absint( $server_id ),
-				$per_page,
-				$offset
-			),
-			ARRAY_A
+		$table = self::get_table_name();
+
+		$query = $wpdb->prepare(
+			'SELECT * FROM %i WHERE server_id = %d ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d',
+			$table,
+			absint( $server_id ),
+			$per_page,
+			$offset
 		);
+
+		$results = $wpdb->get_results( $query, ARRAY_A );
 
 		return $results ?: array();
 	}
@@ -275,13 +280,15 @@ class CliAuthLogTable {
 	private static function get_by_auth_code_hash( $auth_code_hash ) {
 		global $wpdb;
 
-		return $wpdb->get_row(
-			$wpdb->prepare(
-				'SELECT * FROM ' . self::get_table_name() . ' WHERE auth_code_hash = %s LIMIT 1',
-				$auth_code_hash
-			),
-			ARRAY_A
+		$table = self::get_table_name();
+
+		$query = $wpdb->prepare(
+			'SELECT * FROM %i WHERE auth_code_hash = %s LIMIT 1',
+			$table,
+			$auth_code_hash
 		);
+
+		return $wpdb->get_row( $query, ARRAY_A );
 	}
 
 	/**
