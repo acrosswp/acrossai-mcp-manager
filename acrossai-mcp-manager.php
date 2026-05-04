@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: AcrossAI MCP Manager
- * Plugin URI: https://github.com/acrosswp/acrossai-mcp-manager/
+ * Plugin URI: https://acrossai.co/
  * Description: Enable/Disable MCP Adapter Integration for WordPress
  * Version: 0.0.1
  * Author: raftaar1191
