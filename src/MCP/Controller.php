@@ -74,9 +74,9 @@ class Controller {
 		}
 
 		try {
-			// Register database servers at priority 20 — after DefaultServerFactory (priority 10).
+			// Register database servers at priority 1 — after DefaultServerFactory (priority 10).
 			// Must be added before Plugin::instance() triggers the mcp_adapter_init action chain.
-			add_action( 'mcp_adapter_init', array( $this, 'register_database_servers' ), 20 );
+			add_action( 'mcp_adapter_init', array( $this, 'register_database_servers' ), 1 );
 
 			\WP\MCP\Plugin::instance();
 			$this->adapter_status = 'running';
