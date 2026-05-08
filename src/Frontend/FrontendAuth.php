@@ -49,6 +49,7 @@ class FrontendAuth {
 		add_action( 'init', array( $this, 'register_rewrite_rule' ) );
 		add_action( 'init', array( $this, 'maybe_flush_rewrite_rules' ), 20 );
 		add_filter( 'query_vars', array( $this, 'add_query_var' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'template_redirect', array( $this, 'handle_request' ) );
 	}
 
@@ -115,6 +116,29 @@ class FrontendAuth {
 	}
 
 	// -------------------------------------------------------------------------
+	// Assets
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Enqueue frontend styles for the CLI auth page.
+	 *
+	 * @since 1.5.0
+	 *
+	 * @return void
+	 */
+	public function enqueue_assets() {
+		if ( ! get_query_var( self::QUERY_VAR ) ) {
+			return;
+		}
+		wp_enqueue_style(
+			'acrossai-mcp-manager-frontend-auth',
+			ACROSSAI_MCP_MANAGER_URL . 'assets/frontend-auth.css',
+			array(),
+			ACROSSAI_MCP_MANAGER_VERSION
+		);
+	}
+
+	// -------------------------------------------------------------------------
 	// Request handler
 	// -------------------------------------------------------------------------
 
@@ -140,7 +164,7 @@ class FrontendAuth {
 			wp_safe_redirect(
 				wp_login_url(
 					add_query_arg( // phpcs:ignore WordPress.Security.NonceVerification
-						array_map( 'sanitize_text_field', $_GET ), // phpcs:ignore WordPress.Security.NonceVerification
+						array_map( 'sanitize_text_field', wp_unslash( $_GET ) ), // phpcs:ignore WordPress.Security.NonceVerification
 						self::get_base_url()
 					)
 				)
@@ -398,117 +422,7 @@ class FrontendAuth {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><?php echo esc_html( $title . ' — ' . $blog_name ); ?></title>
-<style>
-*, *::before, *::after { box-sizing: border-box; }
-body {
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, sans-serif;
-	font-size: 14px;
-	line-height: 1.6;
-	color: #1d2327;
-	background: #f0f0f1;
-	margin: 0;
-	padding: 40px 20px;
-}
-.acrossai-auth-wrap {
-	max-width: 480px;
-	margin: 0 auto;
-	background: #fff;
-	border-radius: 4px;
-	box-shadow: 0 1px 3px rgba(0,0,0,.13);
-	padding: 32px;
-}
-.acrossai-auth-logo {
-	text-align: center;
-	margin-bottom: 24px;
-}
-.acrossai-auth-logo h1 {
-	font-size: 18px;
-	font-weight: 600;
-	color: #1d2327;
-	margin: 0;
-}
-.acrossai-auth-logo p {
-	font-size: 12px;
-	color: #646970;
-	margin: 4px 0 0;
-}
-.acrossai-notice {
-	border-left: 4px solid #72aee6;
-	background: #f0f6fc;
-	padding: 10px 14px;
-	margin-bottom: 20px;
-	border-radius: 0 3px 3px 0;
-}
-.acrossai-notice-warning {
-	border-color: #dba617;
-	background: #fcf9e8;
-}
-.acrossai-notice-error {
-	border-color: #d63638;
-	background: #fcf0f1;
-}
-.acrossai-notice-success {
-	border-color: #00a32a;
-	background: #edfaef;
-}
-.acrossai-table {
-	width: 100%;
-	border-collapse: collapse;
-	margin-bottom: 16px;
-}
-.acrossai-table th,
-.acrossai-table td {
-	text-align: left;
-	padding: 8px 10px;
-	border-bottom: 1px solid #f0f0f1;
-	vertical-align: top;
-}
-.acrossai-table th {
-	width: 40%;
-	color: #646970;
-	font-weight: 500;
-}
-.acrossai-table code {
-	background: #f6f7f7;
-	padding: 2px 6px;
-	border-radius: 3px;
-	font-size: 13px;
-	word-break: break-all;
-}
-.acrossai-actions {
-	display: flex;
-	gap: 10px;
-	margin-top: 24px;
-}
-.acrossai-btn {
-	display: inline-block;
-	padding: 8px 18px;
-	font-size: 13px;
-	font-weight: 500;
-	border-radius: 3px;
-	border: 1px solid #c3c4c7;
-	background: #f6f7f7;
-	color: #1d2327;
-	text-decoration: none;
-	cursor: pointer;
-	line-height: 1.4;
-}
-.acrossai-btn:hover { background: #f0f0f1; }
-.acrossai-btn-primary {
-	background: #2271b1;
-	border-color: #2271b1;
-	color: #fff;
-}
-.acrossai-btn-primary:hover {
-	background: #135e96;
-	border-color: #135e96;
-	color: #fff;
-}
-.acrossai-description {
-	color: #646970;
-	font-size: 13px;
-}
-</style>
+<?php wp_head(); ?>
 </head>
 <body>
 <div class="acrossai-auth-wrap">
@@ -529,6 +443,7 @@ body {
 	private function render_html_close() {
 		?>
 </div>
+<?php wp_footer(); ?>
 </body>
 </html>
 		<?php

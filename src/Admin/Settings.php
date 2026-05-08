@@ -70,7 +70,7 @@ class Settings {
 	 */
 	public function handle_actions() {
 		// phpcs:disable WordPress.Security.NonceVerification
-		if ( ! isset( $_GET['page'] ) || 'acrossai_mcp_manager' !== $_GET['page'] ) {
+		if ( ! isset( $_GET['page'] ) || 'acrossai_mcp_manager' !== sanitize_text_field( wp_unslash( $_GET['page'] ) ) ) {
 			return;
 		}
 
@@ -296,7 +296,14 @@ class Settings {
 
 			$ns    = ! empty( $server['server_route_namespace'] ) ? $server['server_route_namespace'] : 'mcp';
 			$route = ! empty( $server['server_route'] ) ? $server['server_route'] : $server['server_slug'];
-			AccessControlTable::update( $ns, $route, AccessControlUI::extract_posted_config( $_POST ) );
+
+			$ac_config = AccessControlUI::extract_posted_config( array(
+				'ac_type'    => isset( $_POST['ac_type'] ) ? sanitize_key( wp_unslash( $_POST['ac_type'] ) ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+				'ac_options' => isset( $_POST['ac_options'] ) && is_array( $_POST['ac_options'] )
+					? array_map( 'sanitize_key', wp_unslash( (array) $_POST['ac_options'] ) ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
+					: array(),
+			) );
+			AccessControlTable::update( $ns, $route, $ac_config['key'], $ac_config['value'] );
 
 			wp_safe_redirect(
 				add_query_arg(
@@ -660,6 +667,7 @@ class Settings {
 				'current_user' => wp_get_current_user(),
 				'server_id'    => isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0, // phpcs:ignore WordPress.Security.NonceVerification
 				'clients'      => array_keys( $this->app_passwords->get_clients() ),
+				'slug_label'   => __( 'Slug:', 'acrossai-mcp-manager' ),
 			)
 		);
 
@@ -709,8 +717,8 @@ class Settings {
 		$list_table = new MCPServerListTable();
 		$list_table->prepare_items();
 
-		$updated = isset( $_GET['updated'] ) && '1' === $_GET['updated']; // phpcs:ignore WordPress.Security.NonceVerification
-		$deleted = isset( $_GET['deleted'] ) && '1' === $_GET['deleted']; // phpcs:ignore WordPress.Security.NonceVerification
+		$updated = isset( $_GET['updated'] ) && '1' === sanitize_key( wp_unslash( $_GET['updated'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$deleted = isset( $_GET['deleted'] ) && '1' === sanitize_key( wp_unslash( $_GET['deleted'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 
 		$add_new_url = add_query_arg(
 			array(
@@ -910,50 +918,6 @@ class Settings {
 				<?php submit_button( __( 'Add Server', 'acrossai-mcp-manager' ) ); ?>
 			</form>
 		</div>
-
-		<script>
-		(function() {
-			var nameInput  = document.getElementById('server_name');
-			var nsInput    = document.getElementById('server_route_namespace');
-			var routeInput = document.getElementById('server_route');
-			var slugPreview  = document.getElementById('slug-preview');
-			var mcpSlugEl    = document.getElementById('mcp-url-slug');
-			var mcpNsEl      = document.getElementById('mcp-url-namespace');
-
-			if ( ! nameInput ) return;
-
-			function toSlug(str) {
-				return str
-					.toLowerCase()
-					.replace(/[^a-z0-9\s-]/g, '')
-					.trim()
-					.replace(/[\s]+/g, '-')
-					.replace(/-+/g, '-');
-			}
-
-			function updatePreview() {
-				var slug      = routeInput && routeInput.value.trim()
-					? routeInput.value.trim()
-					: toSlug(nameInput.value);
-				var namespace = nsInput && nsInput.value.trim() ? nsInput.value.trim() : 'mcp';
-
-				if ( slug ) {
-					slugPreview.textContent = '<?php esc_html_e( 'Slug:', 'acrossai-mcp-manager' ); ?> ' + toSlug(nameInput.value);
-					mcpSlugEl.textContent = slug;
-				} else {
-					slugPreview.textContent = '';
-					mcpSlugEl.textContent = '\u2026';
-				}
-				if ( mcpNsEl ) {
-					mcpNsEl.textContent = namespace;
-				}
-			}
-
-			nameInput.addEventListener('input', updatePreview);
-			if ( nsInput )    nsInput.addEventListener('input', updatePreview);
-			if ( routeInput ) routeInput.addEventListener('input', updatePreview);
-		})();
-		</script>
 		<?php
 	}
 
@@ -984,10 +948,10 @@ class Settings {
 		$active_client = isset( $_GET['client'] ) ? sanitize_key( $_GET['client'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		$clients       = $this->app_passwords->get_clients();
 		$back_url      = admin_url( 'admin.php?page=acrossai_mcp_manager' );
-		$updated       = isset( $_GET['updated'] ) && '1' === $_GET['updated']; // phpcs:ignore WordPress.Security.NonceVerification
-		$created       = isset( $_GET['created'] ) && '1' === $_GET['created']; // phpcs:ignore WordPress.Security.NonceVerification
-		$connector_saved = isset( $_GET['connector_saved'] ) && '1' === $_GET['connector_saved']; // phpcs:ignore WordPress.Security.NonceVerification
-		$connector_cleared = isset( $_GET['connector_cleared'] ) && '1' === $_GET['connector_cleared']; // phpcs:ignore WordPress.Security.NonceVerification
+		$updated           = isset( $_GET['updated'] ) && '1' === sanitize_key( wp_unslash( $_GET['updated'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$created           = isset( $_GET['created'] ) && '1' === sanitize_key( wp_unslash( $_GET['created'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$connector_saved   = isset( $_GET['connector_saved'] ) && '1' === sanitize_key( wp_unslash( $_GET['connector_saved'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$connector_cleared = isset( $_GET['connector_cleared'] ) && '1' === sanitize_key( wp_unslash( $_GET['connector_cleared'] ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		$edit_error    = isset( $_GET['error'] ) ? sanitize_key( $_GET['error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
 		if ( 'connector' === $active_tab ) {
@@ -1846,7 +1810,7 @@ class Settings {
 		$cmd_serve = sprintf( 'wp mcp-adapter serve --server=%s --user=admin', $server_slug );
 
 		// STDIO-mode JSON config snippet — uses `wp` directly as the command.
-		$abspath     = rtrim( ABSPATH, '/' );
+		$abspath     = untrailingslashit( get_home_path() );
 		$stdio_config = array(
 			'command' => 'wp',
 			'args'    => array(
