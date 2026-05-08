@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.2] - 2026-05-08
+
+### Security & Code Quality
+
+#### Fixed
+- Sanitize, validate, and escape all `$_GET` and `$_POST` superglobal inputs using `sanitize_key()`, `sanitize_text_field()`, `absint()`, and `wp_unslash()` throughout the plugin
+- Replace hardcoded `ABSPATH` path reference with `get_home_path()` for correct subdirectory-install compatibility
+- Remove all inline `<style>` and `<script>` blocks; move CSS to `assets/frontend-auth.css` and `assets/frontend-oauth.css`, enqueued via `wp_enqueue_style()`; move JS to `assets/admin.js`, enqueued via `wp_enqueue_script()` with data passed through `wp_localize_script()`
+
 ## [0.0.1] - 2026-05-04
 
 ### Initial Release
