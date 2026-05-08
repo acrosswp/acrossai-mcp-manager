@@ -75,6 +75,7 @@ class ClaudeConnectors {
 		add_action( 'init', array( $this, 'maybe_flush_rewrite_rules' ), 20 );
 		add_filter( 'query_vars', array( $this, 'add_query_vars' ) );
 		add_filter( 'redirect_canonical', array( $this, 'disable_canonical_redirects' ), 10, 2 );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'template_redirect', array( $this, 'handle_frontend_request' ) );
 		add_action( 'rest_api_init', array( $this, 'register_rest_routes' ) );
 		add_filter( 'determine_current_user', array( $this, 'determine_current_user_from_bearer' ), 20 );
@@ -200,6 +201,23 @@ class ClaudeConnectors {
 	 */
 	public static function get_token_endpoint_url() {
 		return rest_url( 'acrossai-mcp-manager/v1/connector/oauth/token' );
+	}
+
+	/**
+	 * Enqueue frontend styles for the OAuth authorization page.
+	 *
+	 * @return void
+	 */
+	public function enqueue_assets() {
+		if ( ! get_query_var( self::AUTHORIZE_QUERY_VAR ) ) {
+			return;
+		}
+		wp_enqueue_style(
+			'acrossai-mcp-manager-frontend-oauth',
+			ACROSSAI_MCP_MANAGER_URL . 'assets/frontend-oauth.css',
+			array(),
+			ACROSSAI_MCP_MANAGER_VERSION
+		);
 	}
 
 	/**
@@ -956,21 +974,7 @@ class ClaudeConnectors {
 			<meta name="viewport" content="width=device-width, initial-scale=1">
 			<meta name="robots" content="noindex, nofollow">
 			<title><?php esc_html_e( 'Authorize Claude Connector', 'acrossai-mcp-manager' ); ?></title>
-			<style>
-				*,*::before,*::after{box-sizing:border-box}
-				body{margin:0;padding:40px 20px;background:#f0f0f1;color:#1d2327;font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,sans-serif}
-				.wrap{max-width:560px;margin:0 auto;background:#fff;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,.13);padding:32px}
-				h1{margin:0 0 8px;font-size:20px}
-				p{margin:0 0 16px}
-				table{width:100%;border-collapse:collapse;margin:16px 0}
-				th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #f0f0f1;vertical-align:top}
-				th{width:34%;color:#646970;font-weight:500}
-				code{background:#f6f7f7;padding:2px 6px;border-radius:3px;word-break:break-all}
-				.notice{border-left:4px solid #dba617;background:#fcf9e8;padding:10px 14px;margin:20px 0;border-radius:0 3px 3px 0}
-				.actions{display:flex;gap:10px;margin-top:24px}
-				.btn{display:inline-block;padding:8px 18px;border-radius:3px;border:1px solid #c3c4c7;background:#f6f7f7;color:#1d2327;text-decoration:none}
-				.btn-primary{background:#2271b1;border-color:#2271b1;color:#fff}
-			</style>
+			<?php wp_head(); ?>
 		</head>
 		<body>
 		<div class="wrap">
@@ -1034,9 +1038,10 @@ class ClaudeConnectors {
 			<meta name="viewport" content="width=device-width, initial-scale=1">
 			<meta name="robots" content="noindex, nofollow">
 			<title><?php echo esc_html( $title ); ?></title>
+			<?php wp_head(); ?>
 		</head>
 		<body>
-			<div style="max-width:560px;margin:40px auto;padding:24px;font:14px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+			<div class="acrossai-oauth-error-wrap">
 				<h1><?php echo esc_html( $title ); ?></h1>
 				<p><?php echo esc_html( $message ); ?></p>
 			</div>

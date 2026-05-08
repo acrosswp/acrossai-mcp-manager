@@ -371,3 +371,48 @@
 		MCPAdmin.init();
 	}
 } )();
+
+// Add-server slug preview — no-op on pages where the form is absent.
+( function () {
+	var nameInput   = document.getElementById( 'server_name' );
+	var nsInput     = document.getElementById( 'server_route_namespace' );
+	var routeInput  = document.getElementById( 'server_route' );
+	var slugPreview = document.getElementById( 'slug-preview' );
+	var mcpSlugEl   = document.getElementById( 'mcp-url-slug' );
+	var mcpNsEl     = document.getElementById( 'mcp-url-namespace' );
+
+	if ( ! nameInput ) {
+		return;
+	}
+
+	function toSlug( str ) {
+		return str
+			.toLowerCase()
+			.replace( /[^a-z0-9\s-]/g, '' )
+			.trim()
+			.replace( /[\s]+/g, '-' )
+			.replace( /-+/g, '-' );
+	}
+
+	function updatePreview() {
+		var slug      = routeInput && routeInput.value.trim()
+			? routeInput.value.trim()
+			: toSlug( nameInput.value );
+		var namespace = nsInput && nsInput.value.trim() ? nsInput.value.trim() : 'mcp';
+
+		if ( slug ) {
+			slugPreview.textContent = ( acrossaiMcpManagerData.slug_label || 'Slug:' ) + ' ' + toSlug( nameInput.value );
+			mcpSlugEl.textContent   = slug;
+		} else {
+			slugPreview.textContent = '';
+			mcpSlugEl.textContent   = '…';
+		}
+		if ( mcpNsEl ) {
+			mcpNsEl.textContent = namespace;
+		}
+	}
+
+	nameInput.addEventListener( 'input', updatePreview );
+	if ( nsInput )    { nsInput.addEventListener( 'input', updatePreview ); }
+	if ( routeInput ) { routeInput.addEventListener( 'input', updatePreview ); }
+} )();
