@@ -4,9 +4,10 @@ Extensible per-resource access control library for WordPress plugins.
 
 Answers one question: **"Does this user have access to this resource?"**
 
-The library owns its own database table, ships a WordPress role provider
-out of the box, and exposes a single method your plugin calls wherever it
-needs to gate access — REST API, form submission, WP-CLI, anywhere.
+The library owns its own database table (managed by **BerlinDB**), ships a
+WordPress role provider out of the box, and exposes a single method your
+plugin calls wherever it needs to gate access — REST API, form submission,
+WP-CLI, anywhere.
 
 ---
 
@@ -15,6 +16,7 @@ needs to gate access — REST API, form submission, WP-CLI, anywhere.
 - PHP 7.4+
 - WordPress 5.9+
 - `automattic/jetpack-autoloader` **^2.0** (mandatory — see below)
+- `berlindb/core` **^2.0** (DB layer)
 
 ---
 
@@ -24,13 +26,13 @@ needs to gate access — REST API, form submission, WP-CLI, anywhere.
 composer require wpboilerplate/wpb-access-control
 ```
 
-Your `composer.json` must include Jetpack Autoloader and the correct
-stability settings:
+Your `composer.json` must include Jetpack Autoloader:
 
 ```json
 {
     "require": {
         "automattic/jetpack-autoloader": "^2.0",
+        "berlindb/core": "^2.0",
         "wpboilerplate/wpb-access-control": "dev-main"
     },
     "repositories": [
@@ -54,47 +56,33 @@ stability settings:
 > If two plugins both install this library at different versions, PHP will
 > throw a fatal "class already declared" error. Jetpack Autoloader scans
 > every installed plugin, finds all copies of the library, and loads only
-> the newest version. Without it this library is unsafe to ship.
+> the newest version.
 
 ---
 
 ## Setup
 
-### 1. Create the table
+### Boot the manager
 
-Call `maybe_create_table()` in **two** places so both fresh installs and
-library upgrades are handled:
-
-```php
-// On activation hook
-register_activation_hook( __FILE__, function () {
-    WPBoilerplate\AccessControl\AccessControlTable::maybe_create_table();
-} );
-
-// On plugins_loaded
-add_action( 'plugins_loaded', function () {
-    WPBoilerplate\AccessControl\AccessControlTable::maybe_create_table();
-} );
-```
-
-### 2. Boot the manager
-
-Instantiate `AccessControlManager` early (e.g. in your `plugins_loaded`
-callback). Always pass a **plugin-specific filter tag** to prevent your
-providers from leaking into other plugins that also use this library.
+Instantiate `AccessControlManager` early (e.g. in `plugins_loaded`). Always
+pass a **plugin-specific filter tag** to prevent your providers from bleeding
+into other plugins that also use this library.
 
 ```php
 use WPBoilerplate\AccessControl\AccessControlManager;
 
-$manager = new AccessControlManager( 'my_plugin_access_control_providers' );
+add_action( 'plugins_loaded', function () {
+    $manager = new AccessControlManager( 'my_plugin_access_control_providers' );
+} );
 ```
+
+That's it. `AccessControlManager` owns a `RuleQuery` internally, which
+registers `RuleTable` on first instantiation. BerlinDB creates or upgrades
+the `{prefix}wpb_access_control` table automatically on `admin_init`.
 
 ---
 
 ## Checking access
-
-Call `user_has_access()` wherever your plugin needs to gate access.
-The library reads the stored rule from its own table and enforces it.
 
 ```php
 $allowed = $manager->user_has_access(
@@ -104,7 +92,6 @@ $allowed = $manager->user_has_access(
 );
 
 if ( ! $allowed ) {
-    // Decide what to do: WP_Error, wp_die, redirect, etc.
     wp_die( 'Access denied.', 403 );
 }
 ```
@@ -113,57 +100,57 @@ if ( ! $allowed ) {
 
 | Step | Condition | Result |
 |------|-----------|--------|
-| 1 | `access_control` empty or `type = everyone` | **Allow** |
+| 1 | `access_control_key` empty or `'everyone'` | **Allow** |
 | 2 | User has `manage_options` (administrator) | **Always allow** |
 | 3 | User ID = 0 (unauthenticated) | **Deny** |
-| 4 | No provider registered for the configured type | **Deny** |
+| 4 | No provider registered for the configured key | **Deny** |
 | 5 | `provider->user_has_access()` | Allow or **Deny** |
 
 ---
 
-## Storing and reading rules
+## Reading and writing rules directly
 
-Use `AccessControlTable` to read and write rules from your admin UI.
+Use `RuleQuery` when you need to read or write rules outside of the built-in
+admin UI flow.
 
 ```php
-use WPBoilerplate\AccessControl\AccessControlTable;
+use WPBoilerplate\AccessControl\Database\Rule\RuleQuery;
 
-// Read the current rule (returns JSON string or '').
-$raw = AccessControlTable::get( 'my-namespace', 'my-resource' );
+$query = new RuleQuery();
 
-// Save a rule — value is sanitized internally.
-AccessControlTable::update(
-    'my-namespace',
-    'my-resource',
-    '{"type":"wp_role","options":["editor","author"]}'
-);
+// Read the current rule.
+$rule = $query->get_rule( 'my-namespace', 'my-resource' );
+// → ['key' => 'wp_role', 'value' => ['editor', 'author']]
+// → ['key' => '', 'value' => []]   when no rule is set
 
-// Remove a rule (resource reverts to "everyone").
-AccessControlTable::delete( 'my-namespace', 'my-resource' );
+// Save a rule (sanitized internally).
+$query->set_rule( 'my-namespace', 'my-resource', 'wp_role', ['editor', 'author'] );
+
+// Allow everyone.
+$query->set_rule( 'my-namespace', 'my-resource', 'everyone', [] );
+
+// Clear a rule (resource reverts to "no restriction configured").
+$query->clear_rule( 'my-namespace', 'my-resource' );
 
 // Plugin uninstall — remove all rows for your namespace.
-AccessControlTable::delete_all_for_namespace( 'my-namespace' );
+$query->purge_namespace( 'my-namespace' );
 ```
 
-### JSON config format
+You can also access the query instance from the manager:
 
-```json
-{ "type": "wp_role", "options": ["editor", "author"] }
+```php
+$rule = $manager->get_query()->get_rule( 'my-namespace', 'my-resource' );
 ```
-
-An empty string `""` means **no restriction** — all users pass.
 
 ---
 
 ## Admin UI
 
-The library ships a ready-to-use admin panel — type dropdown, role checkboxes, and user search-as-you-type with multi-select tags. It handles search and saving via AJAX, so consuming plugins only need to bootstrap it correctly, enqueue assets, and render the panel.
+The library ships a ready-to-use admin panel — type dropdown, role
+checkboxes, and user search-as-you-type with multi-select tags. It handles
+search and saving via AJAX.
 
 ### 1. Bootstrap the UI once
-
-Instantiate `AccessControlUI` once during plugin bootstrap so its shared AJAX
-handlers are registered on both normal admin requests and `admin-ajax.php`
-requests:
 
 ```php
 use WPBoilerplate\AccessControl\AccessControlManager;
@@ -173,15 +160,12 @@ $manager = new AccessControlManager( 'my_plugin_access_control_providers' );
 $ui      = new AccessControlUI( $manager );
 ```
 
-If your plugin cannot create the UI instance until later, call the shared
-bootstrap explicitly:
+If you cannot create the UI instance until later, call the shared bootstrap
+explicitly so the AJAX handlers are registered on `admin-ajax.php` requests:
 
 ```php
 add_action( 'plugins_loaded', [ AccessControlUI::class, 'bootstrap' ] );
 ```
-
-Do **not** instantiate `AccessControlUI` only inside `admin_enqueue_scripts`
-or a page callback when you rely on the built-in AJAX search/save flow.
 
 ### 2. Enqueue assets
 
@@ -197,41 +181,27 @@ $ui->render( 'my-namespace', 'my-resource', [
 ] );
 ```
 
-The panel renders a complete `<form>` element and saves through the library-owned `wpb_access_control_save` AJAX action. Namespace, key, nonce, and success/error handling are all wired internally.
+The panel renders a complete `<form>` element and saves through the
+library-owned `wpb_access_control_save` AJAX action. Everything is wired
+internally.
 
-If you need to restrict which resources a given admin screen may save, hook `wpb_access_control_can_save`:
+### 4. Authorize saves per namespace/key
 
 ```php
 add_filter( 'wpb_access_control_can_save', function( bool $can_save, string $namespace, string $key, int $user_id ) {
-    if ( 'my-namespace' !== $namespace ) {
-        return false;
-    }
-
-    return user_can( $user_id, 'manage_options' ) && 'my-resource' === $key;
+    return 'my-namespace' === $namespace && 'my-resource' === $key;
 }, 10, 4 );
 ```
 
-After a successful built-in AJAX save, the library fires `wpb_access_control_saved`:
+### 5. React to a successful save
 
 ```php
-add_action( 'wpb_access_control_saved', function( string $namespace, string $key, string $json, int $user_id ) {
-    // Optional: audit logging, plugin cache invalidation, etc.
-}, 10, 4 );
+add_action( 'wpb_access_control_saved', function( string $namespace, string $key, string $ac_key, array $ac_options, int $user_id ) {
+    // Audit logging, cache invalidation, etc.
+}, 10, 5 );
 ```
-
-### 4. Optional: custom save flow
-
-```php
-// Only needed if you want to save outside the built-in UI flow.
-$json = AccessControlUI::extract_posted_config( $_POST );
-AccessControlTable::update( 'my-namespace', 'my-resource', $json );
-```
-
-`extract_posted_config()` reads `ac_type` and `ac_options[]` from the posted data and returns a sanitized JSON string (or `''` for "everyone"). The built-in panel already uses this internally for AJAX saving; keep it for custom integrations only.
 
 ### Overriding the asset URL
-
-The library auto-detects its asset URL from `WP_CONTENT_DIR`/`WP_CONTENT_URL`. If your layout is unusual (symlinked vendor, non-standard paths), override it:
 
 ```php
 $ui->set_assets_url( plugins_url( 'vendor/wpboilerplate/wpb-access-control/assets', __FILE__ ) );
@@ -255,7 +225,7 @@ Each provider must extend `WPBoilerplate\AccessControl\AbstractProvider`:
 
 | Method | Required | Description |
 |--------|----------|-------------|
-| `get_id(): string` | Yes | Unique key stored in JSON `type` field |
+| `get_id(): string` | Yes | Unique slug stored as `access_control_key` |
 | `get_label(): string` | Yes | Label shown in admin UI dropdown |
 | `get_options(): array` | Yes | `[['id'=>'slug','label'=>'Name'], ...]` |
 | `user_has_access(int $user_id, array $selected): bool` | Yes | Core check |
@@ -286,8 +256,7 @@ class MembershipProvider extends AbstractProvider {
     }
 
     public function user_has_access( int $user_id, array $selected_options ): bool {
-        $level = my_get_membership_level( $user_id );
-        return in_array( $level, $selected_options, true );
+        return in_array( my_get_membership_level( $user_id ), $selected_options, true );
     }
 
     public function is_available(): bool {
@@ -301,10 +270,9 @@ class MembershipProvider extends AbstractProvider {
 ## Reacting to denied access
 
 ```php
-add_action( 'wpb_access_control_denied', function( $user_id, $namespace, $key, $ac_config ) {
-    // Log, notify, increment a counter, etc.
+add_action( 'wpb_access_control_denied', function( int $user_id, string $namespace, string $key, string $ac_key, array $options ) {
     error_log( "Access denied — user:{$user_id} {$namespace}/{$key}" );
-}, 10, 4 );
+}, 10, 5 );
 ```
 
 ---
@@ -313,8 +281,8 @@ add_action( 'wpb_access_control_denied', function( $user_id, $namespace, $key, $
 
 | Provider ID | Class | Description |
 |-------------|-------|-------------|
-| `wp_role` | `WpRoleProvider` | Restricts by WordPress user role. Administrator excluded from options (always bypassed). |
-| `wp_user` | `WpUserProvider` | Restricts to a specific list of WordPress users, selected by username or email via AJAX search. Supports multiple users. |
+| `wp_role` | `WpRoleProvider` | Restricts by WordPress user role. Administrator is excluded from options (always bypassed). |
+| `wp_user` | `WpUserProvider` | Restricts to a specific list of WordPress users, selected via AJAX search. |
 
 ### `WpRoleProvider` filters
 
@@ -325,35 +293,21 @@ add_action( 'wpb_access_control_denied', function( $user_id, $namespace, $key, $
 
 ### `WpUserProvider`
 
-Allows the site administrator to pick one or more specific WordPress users by
-searching for their username or email. When you use `AccessControlUI`, the
-library renders the search field, performs the AJAX lookup, renders selected
-user tags, and saves the chosen IDs through the built-in save flow.
-
-**JSON config format:**
-
-```json
-{ "type": "wp_user", "options": ["1", "42", "7"] }
-```
-
-Options contain **user IDs stored as strings**. IDs survive the
-`sanitize_key()` pass that `AccessControlTable::sanitize()` applies to all
-option values; email addresses would not.
+Options contain **user IDs stored as strings** — `sanitize_key()` strips `@`
+and `.`, so emails would be corrupted; numeric ID strings survive unchanged.
 
 **Static helpers (optional advanced use):**
 
 ```php
 use WPBoilerplate\AccessControl\WpUserProvider;
 
-// Live search.
 $results = WpUserProvider::search_users( 'jane' );
-// Returns: [['id'=>'5','login'=>'jane','email'=>'jane@example.com','display_name'=>'Jane Doe'], ...]
+// → [['id'=>'5','login'=>'jane','email'=>'jane@example.com','display_name'=>'Jane Doe'], ...]
 
-// Hydrate saved IDs back into display data for the settings page.
 $users = WpUserProvider::get_users_by_ids( ['5', '42'] );
 ```
 
-**`WpUserProvider` filters:**
+**Filter:**
 
 | Filter | Description |
 |--------|-------------|
@@ -368,35 +322,33 @@ Always pass a plugin-specific tag to `AccessControlManager`. If two plugins
 both use the default `'wpb_access_control_providers'`, their providers will
 bleed into each other's admin UIs and enforcement logic.
 
-### Table creation timing
-Call `maybe_create_table()` on **both** the activation hook and
-`plugins_loaded`. Activation alone misses upgrades delivered when the library
-version bumps without the consuming plugin being reactivated.
+### Table management
+BerlinDB handles all table creation and upgrades automatically via `admin_init`.
+No activation hook or `maybe_create_table()` call is required. Instantiating
+`new AccessControlManager(...)` (or `new RuleQuery()`) is sufficient.
 
-### Object cache
-`AccessControlTable::get()` results are cached. Always use `update()` and
-`delete()` — never write to the table via raw `$wpdb`. Direct writes bypass
-the cache and will serve stale data until the next page load.
+### Caching
+BerlinDB manages its own object cache. Always use `RuleQuery::set_rule()` and
+`clear_rule()` — never write to the table via raw `$wpdb`. Direct writes
+bypass the cache.
 
 ### Administrator bypass is unconditional
 Any user with `manage_options` always returns `true` from `user_has_access()`
-regardless of the stored rule. This cannot be overridden per-plugin.
+regardless of the stored rule.
 
 ### Uninstall cleanup
-The library never drops its own table. Each consuming plugin is responsible
-for cleaning up its own rows on uninstall:
+Each consuming plugin is responsible for removing its own rows:
 
 ```php
 // In uninstall.php
-AccessControlTable::delete_all_for_namespace( 'my-namespace' );
+( new \WPBoilerplate\AccessControl\Database\Rule\RuleQuery() )
+    ->purge_namespace( 'my-namespace' );
 ```
-
-Only drop the entire table if you are certain no other plugin is using it.
 
 ### Multisite
 The table uses `$wpdb->prefix` — each sub-site has its own
 `{prefix}wpb_access_control` table. Network-wide rules are not supported
-by the library and must be handled by the consuming plugin.
+and must be handled by the consuming plugin.
 
 ---
 
@@ -406,11 +358,12 @@ Table: `{prefix}wpb_access_control`
 
 | Column | Type | Notes |
 |--------|------|-------|
-| `id` | BIGINT PK AI | |
+| `id` | BIGINT UNSIGNED PK AI | |
 | `namespace` | VARCHAR(100) | Plugin-scoped prefix |
 | `key` | VARCHAR(255) | Resource identifier |
-| `access_control` | TEXT | JSON config or `''` |
-| `created_at` | DATETIME | Set on INSERT |
-| `updated_at` | DATETIME | Auto-updated on UPDATE |
+| `access_control_key` | VARCHAR(100) | Rule type slug (same for all rows of a resource) |
+| `access_control_value` | VARCHAR(255) | One option per row; `''` for the `everyone` sentinel |
+| `created_at` | DATETIME | BerlinDB-managed |
+| `updated_at` | DATETIME | BerlinDB-managed |
 
-Unique constraint: `(namespace, key)`
+Indexes: `PRIMARY KEY (id)`, `UNIQUE (namespace, key(191), access_control_value)`, `KEY (namespace, key(191))`

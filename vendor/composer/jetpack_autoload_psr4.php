@@ -26,6 +26,10 @@ return array(
 		'version' => '7.4.8.0',
 		'path'    => array( $vendorDir . '/symfony/http-foundation' )
 	),
+	'BerlinDB\\' => array(
+		'version' => '2.0.2.0',
+		'path'    => array( $vendorDir . '/berlindb/core/src' )
+	),
 	'Automattic\\Jetpack\\Autoloader\\' => array(
 		'version' => '2.12.0',
 		'path'    => array( $vendorDir . '/automattic/jetpack-autoloader/src' )

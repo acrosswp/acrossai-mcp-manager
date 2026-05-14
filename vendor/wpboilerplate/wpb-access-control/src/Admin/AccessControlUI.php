@@ -25,9 +25,6 @@
  *          'submit_label' => __( 'Save', 'my-plugin' ),
  *      ] );
  *
- * The library handles AJAX saves internally. Consuming plugins only need to
- * instantiate the UI, enqueue assets, and render the panel.
- *
  * @package WPBoilerplate\AccessControl\Admin
  * @since   1.2.0
  */
@@ -35,7 +32,8 @@
 namespace WPBoilerplate\AccessControl\Admin;
 
 use WPBoilerplate\AccessControl\AccessControlManager;
-use WPBoilerplate\AccessControl\AccessControlTable;
+use WPBoilerplate\AccessControl\Database\Rule\RuleQuery;
+use WPBoilerplate\AccessControl\Database\Rule\RuleTable;
 use WPBoilerplate\AccessControl\WpUserProvider;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -49,39 +47,19 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class AccessControlUI {
 
-	/**
-	 * The manager instance that supplies the registered provider list.
-	 *
-	 * @var AccessControlManager
-	 */
+	/** @var AccessControlManager */
 	private $manager;
 
-	/**
-	 * Explicit asset base URL. Null = auto-detect from WP_CONTENT_DIR/URL.
-	 *
-	 * @var string|null
-	 */
+	/** @var string|null Explicit asset base URL. Null = auto-detect. */
 	private $assets_url = null;
 
-	/**
-	 * Guard: AJAX action registered exactly once across all instances.
-	 *
-	 * @var bool
-	 */
+	/** @var bool AJAX action registered exactly once across all instances. */
 	private static $ajax_registered = false;
 
-	/**
-	 * Monotonic counter to generate unique per-form DOM IDs.
-	 *
-	 * @var int
-	 */
+	/** @var int Monotonic counter for unique per-form DOM IDs. */
 	private static $instance_count = 0;
 
 	/**
-	 * Constructor.
-	 *
-	 * Stores the manager and ensures the shared AJAX actions are registered.
-	 *
 	 * @since 1.2.0
 	 *
 	 * @param AccessControlManager $manager Provider registry from the consuming plugin.
@@ -92,12 +70,7 @@ class AccessControlUI {
 	}
 
 	/**
-	 * Register the shared AJAX callbacks for user search and saving.
-	 *
-	 * Call this during plugin bootstrap when the UI instance is created later
-	 * than `plugins_loaded` or only inside screen-specific callbacks. The
-	 * constructor calls this automatically, so plugins that instantiate the UI
-	 * once during bootstrap do not need a separate call.
+	 * Register the shared AJAX callbacks.
 	 *
 	 * @since 1.2.0
 	 *
@@ -107,7 +80,6 @@ class AccessControlUI {
 		if ( self::$ajax_registered ) {
 			return;
 		}
-
 		self::$ajax_registered = true;
 		add_action( 'wp_ajax_wpb_access_control_search_users', array( __CLASS__, 'ajax_search_users' ) );
 		add_action( 'wp_ajax_wpb_access_control_save', array( __CLASS__, 'ajax_save' ) );
@@ -116,14 +88,9 @@ class AccessControlUI {
 	/**
 	 * Override the auto-detected asset base URL.
 	 *
-	 * Use this when the package is installed in an unusual location (symlinked,
-	 * outside wp-content, etc.) and the automatic WP_CONTENT_DIR/URL resolver
-	 * produces a wrong URL.
-	 *
 	 * @since 1.2.0
 	 *
-	 * @param string $url Absolute URL pointing at the package's assets/ directory,
-	 *                    without a trailing slash. Example: plugins_url( 'vendor/wpboilerplate/wpb-access-control/assets', __FILE__ )
+	 * @param string $url Absolute URL pointing at the package's assets/ directory.
 	 *
 	 * @return void
 	 */
@@ -138,17 +105,12 @@ class AccessControlUI {
 	/**
 	 * Render the access-control settings panel.
 	 *
-	 * The form submits via AJAX — no form_action or nonce_action needed from
-	 * the consumer. The library registers the save action and handles the
-	 * response inline (success notice or error message). Namespace and key
-	 * are embedded as hidden inputs so the handler knows which rule to update.
-	 *
 	 * @since 1.2.0
 	 *
-	 * @param string $namespace Resource namespace (e.g. 'mcp', 'procureco/v1').
-	 * @param string $key       Resource key within that namespace.
+	 * @param string $namespace Resource namespace.
+	 * @param string $key       Resource key.
 	 * @param array  $args {
-	 *     @type string $submit_label Submit button label. Default "Save Access Control".
+	 *     @type string $submit_label Submit button label.
 	 *     @type string $description  Paragraph shown below the heading.
 	 * }
 	 *
@@ -163,8 +125,7 @@ class AccessControlUI {
 			? (string) $args['description']
 			: __( 'Control which users are allowed to access this resource. Administrators always have access regardless of this setting.', 'wpb-access-control' );
 
-		// Resolve current stored config.
-		$row       = AccessControlTable::get( $namespace, $key );
+		$row       = $this->manager->get_query()->get_rule( $namespace, $key );
 		$ac_key    = $row['key'];
 		$ac_values = $row['value'];
 
@@ -172,7 +133,6 @@ class AccessControlUI {
 		?>
 		<div class="wpb-ac-panel" data-wpb-ac-form="<?php echo esc_attr( $form_id ); ?>">
 
-			<!-- Inline notice shown after AJAX save (hidden until JS populates it). -->
 			<div class="wpb-ac-notice" style="display:none;" aria-live="polite"></div>
 
 			<form method="post"
@@ -180,7 +140,6 @@ class AccessControlUI {
 			      class="wpb-ac-form"
 			      data-wpb-ac-ajax-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>">
 
-				<!-- Library-owned save action and nonce — consumer sets neither. -->
 				<input type="hidden" name="action"       value="wpb_access_control_save">
 				<input type="hidden" name="wpb_ac_nonce" value="<?php echo esc_attr( wp_create_nonce( 'wpb_access_control_save' ) ); ?>">
 				<input type="hidden" name="wpb_ac_ns"    value="<?php echo esc_attr( $namespace ); ?>">
@@ -194,7 +153,6 @@ class AccessControlUI {
 				<table class="form-table" role="presentation">
 					<tbody>
 
-						<!-- Type selector -->
 						<tr>
 							<th scope="row">
 								<label for="<?php echo esc_attr( $form_id . '-type' ); ?>">
@@ -223,7 +181,6 @@ class AccessControlUI {
 							</td>
 						</tr>
 
-						<!-- Per-provider option rows (shown/hidden by JS) -->
 						<?php foreach ( $providers as $provider_id => $provider ) : ?>
 							<?php if ( ! $provider->is_available() ) { continue; } ?>
 							<tr class="wpb-ac-options-row wpb-ac-options-<?php echo esc_attr( $provider_id ); ?>"
@@ -249,16 +206,13 @@ class AccessControlUI {
 	/**
 	 * Enqueue the library's admin CSS and JS.
 	 *
-	 * Call this from your plugin's admin_enqueue_scripts hook. Safe to call
-	 * multiple times — WordPress skips double-enqueues by handle.
-	 *
 	 * @since 1.2.0
 	 *
 	 * @return void
 	 */
 	public function enqueue_assets(): void {
 		$base = $this->resolve_assets_url();
-		$ver  = filemtime( dirname( __DIR__, 2 ) . '/assets/css/admin.css' ) ?: '1.2.0';
+		$ver  = filemtime( dirname( __DIR__, 2 ) . '/assets/css/admin.css' ) ?: '3.0.0';
 
 		wp_enqueue_style(
 			'wpb-access-control-admin',
@@ -271,7 +225,7 @@ class AccessControlUI {
 			'wpb-access-control-admin',
 			$base . '/js/admin.js',
 			array(),
-			filemtime( dirname( __DIR__, 2 ) . '/assets/js/admin.js' ) ?: '1.2.0',
+			filemtime( dirname( __DIR__, 2 ) . '/assets/js/admin.js' ) ?: '3.0.0',
 			true
 		);
 
@@ -296,13 +250,7 @@ class AccessControlUI {
 	}
 
 	/**
-	 * Extract and return the access-control rule from POST data.
-	 *
-	 * Reads ac_type and ac_options[] from the supplied array (pass $_POST).
-	 * Used internally by ajax_save(), but remains public so consuming plugins
-	 * can reuse the same extraction logic in custom save flows when needed.
-	 * Sanitization of the key and option values is handled inside
-	 * AccessControlTable::update() to avoid double-processing.
+	 * Extract the access-control rule from POST data.
 	 *
 	 * @since 2.0.0
 	 *
@@ -326,14 +274,11 @@ class AccessControlUI {
 	}
 
 	// -------------------------------------------------------------------------
-	// AJAX
+	// AJAX handlers
 	// -------------------------------------------------------------------------
 
 	/**
 	 * Handle wp_ajax_wpb_access_control_search_users.
-	 *
-	 * Returns an array of matching users for the live search UI. Never call
-	 * this method directly — it is registered as a WP AJAX callback.
 	 *
 	 * @since 1.2.0
 	 *
@@ -355,9 +300,6 @@ class AccessControlUI {
 
 	/**
 	 * Handle wp_ajax_wpb_access_control_save.
-	 *
-	 * Verifies the library-owned nonce, validates the target namespace + key,
-	 * then persists the extracted config through AccessControlTable::update().
 	 *
 	 * @since 1.2.0
 	 *
@@ -381,15 +323,12 @@ class AccessControlUI {
 			wp_send_json_error( array( 'message' => __( 'Missing access-control target.', 'wpb-access-control' ) ), 400 );
 		}
 
-		if ( strlen( $namespace ) > AccessControlTable::NAMESPACE_LENGTH || strlen( $key ) > AccessControlTable::KEY_LENGTH ) {
+		if ( strlen( $namespace ) > RuleTable::NAMESPACE_LENGTH || strlen( $key ) > RuleTable::KEY_LENGTH ) {
 			wp_send_json_error( array( 'message' => __( 'Invalid access-control target.', 'wpb-access-control' ) ), 400 );
 		}
 
 		/**
 		 * Filter whether the current request may save access control for a target.
-		 *
-		 * Use this to restrict which namespaces/keys a specific admin screen is
-		 * allowed to manage, especially when multiple plugins use this library.
 		 *
 		 * @since 1.2.0
 		 *
@@ -406,7 +345,8 @@ class AccessControlUI {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$config  = self::extract_posted_config( $_POST );
-		$updated = AccessControlTable::update( $namespace, $key, $config['key'], $config['value'] );
+		$query   = new RuleQuery();
+		$updated = $query->set_rule( $namespace, $key, $config['key'], $config['value'] );
 
 		if ( ! $updated ) {
 			wp_send_json_error( array( 'message' => __( 'Failed to save access control.', 'wpb-access-control' ) ), 500 );
@@ -419,17 +359,13 @@ class AccessControlUI {
 		 *
 		 * @param string   $namespace  Saved resource namespace.
 		 * @param string   $key        Saved resource key.
-		 * @param string   $ac_key     Rule type slug ('', 'everyone', 'wp_role', 'wp_user', …).
-		 * @param string[] $ac_options Rule options (role slugs, user ID strings, etc.).
+		 * @param string   $ac_key     Rule type slug.
+		 * @param string[] $ac_options Rule options.
 		 * @param int      $user_id    Current WordPress user ID.
 		 */
 		do_action( 'wpb_access_control_saved', $namespace, $key, $config['key'], $config['value'], $user_id );
 
-		wp_send_json_success(
-			array(
-				'message' => __( 'Access control saved.', 'wpb-access-control' ),
-			)
-		);
+		wp_send_json_success( array( 'message' => __( 'Access control saved.', 'wpb-access-control' ) ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -438,11 +374,6 @@ class AccessControlUI {
 
 	/**
 	 * Return the base URL of the library's assets/ directory.
-	 *
-	 * Auto-detection strips the absolute WP_CONTENT_DIR prefix from the
-	 * package root and prepends WP_CONTENT_URL. Works whether the package is
-	 * installed directly under wp-content/ or inside a plugin's vendor/.
-	 * Override with set_assets_url() when the auto-detection is wrong.
 	 *
 	 * @since 1.2.0
 	 *
@@ -453,7 +384,6 @@ class AccessControlUI {
 			return $this->assets_url;
 		}
 
-		// Package root = two directories above this file (src/Admin → src → root).
 		$pkg_root    = wp_normalize_path( dirname( __DIR__, 2 ) );
 		$content_dir = wp_normalize_path( untrailingslashit( WP_CONTENT_DIR ) );
 		$content_url = untrailingslashit( WP_CONTENT_URL );
@@ -463,7 +393,6 @@ class AccessControlUI {
 			return set_url_scheme( $content_url . $relative . '/assets' );
 		}
 
-		// Fallback: caller should set_assets_url() explicitly.
 		return set_url_scheme( $content_url . '/wpb-access-control/assets' );
 	}
 }

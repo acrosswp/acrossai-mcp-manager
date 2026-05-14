@@ -256,9 +256,16 @@ class MCPServerTable {
 
 			// v1.5.0 migration: move access_control data to the library table.
 			if ( $has_ac_column && ! empty( $row['access_control'] ) ) {
-				$ns    = ! empty( $row['server_route_namespace'] ) ? $row['server_route_namespace'] : 'mcp';
-				$route = ! empty( $row['server_route'] ) ? $row['server_route'] : $effective_slug;
-				\WPBoilerplate\AccessControl\AccessControlTable::update( $ns, $route, $row['access_control'] );
+				$ns      = ! empty( $row['server_route_namespace'] ) ? $row['server_route_namespace'] : 'mcp';
+				$route   = ! empty( $row['server_route'] ) ? $row['server_route'] : $effective_slug;
+				$ac_data = json_decode( $row['access_control'], true );
+				if ( is_array( $ac_data ) ) {
+					$ac_key     = isset( $ac_data['type'] ) ? (string) $ac_data['type'] : '';
+					$ac_options = isset( $ac_data['options'] ) && is_array( $ac_data['options'] )
+						? array_map( 'strval', $ac_data['options'] )
+						: array();
+					( new \WPBoilerplate\AccessControl\Database\Rule\RuleQuery() )->set_rule( $ns, $route, $ac_key, $ac_options );
+				}
 			}
 		}
 

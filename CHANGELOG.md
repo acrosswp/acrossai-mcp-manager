@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.0.3] - 2026-05-14
+
+### Dependencies
+
+- Updated `wpboilerplate/wpb-access-control` to latest (BerlinDB-backed storage, flat-row schema)
+- Updated `bshaffer/oauth2-server-httpfoundation-bridge` v1.7.1 → v1.7.2
+- Updated `symfony/deprecation-contracts` v3.6.0 → v3.7.0
+- Added `berlindb/core` 2.0.2 (new transitive dependency of wpb-access-control)
+
+### Fixed
+
+- Remove all references to the removed `AccessControlTable` class (replaced by `RuleQuery` in wpb-access-control v3.0.0); fixes fatal error on plugin activation
+- Remove manual `AccessControlTable::maybe_create_table()` calls from the activation hook and `Plugin::__construct()`; the access-control table is now auto-bootstrapped by `RuleQuery` on first use
+- Remove the dead `save_access_control` POST action handler in `Settings::handle_actions()`; access-control rules are now saved exclusively via the library's built-in AJAX handler (`wp_ajax_wpb_access_control_save`)
+- Update the v1.5.0 legacy migration in `MCPServerTable` to parse the old JSON blob and call `RuleQuery::set_rule()` instead of the removed `AccessControlTable::update()`
+
 ## [0.0.2] - 2026-05-08
 
 ### Security & Code Quality

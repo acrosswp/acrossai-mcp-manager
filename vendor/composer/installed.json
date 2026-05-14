@@ -66,29 +66,63 @@
             "install-path": "../automattic/jetpack-autoloader"
         },
         {
-            "name": "bshaffer/oauth2-server-httpfoundation-bridge",
-            "version": "v1.7.1",
-            "version_normalized": "1.7.1.0",
+            "name": "berlindb/core",
+            "version": "2.0.2",
+            "version_normalized": "2.0.2.0",
             "source": {
                 "type": "git",
-                "url": "https://github.com/bshaffer/oauth2-server-httpfoundation-bridge.git",
-                "reference": "ab0b702c8a036f44d72bf62f7d02574d610cd894"
+                "url": "https://github.com/berlindb/core.git",
+                "reference": "6a9383ab2dad726bf2d6dbda6687da848eda22ea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/bshaffer/oauth2-server-httpfoundation-bridge/zipball/ab0b702c8a036f44d72bf62f7d02574d610cd894",
-                "reference": "ab0b702c8a036f44d72bf62f7d02574d610cd894",
+                "url": "https://api.github.com/repos/berlindb/core/zipball/6a9383ab2dad726bf2d6dbda6687da848eda22ea",
+                "reference": "6a9383ab2dad726bf2d6dbda6687da848eda22ea",
+                "shasum": ""
+            },
+            "time": "2025-10-23T20:00:35+00:00",
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "BerlinDB\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "A collection of PHP classes and functions that aims to provide an ORM-like experience and interface to WordPress database tables.",
+            "support": {
+                "issues": "https://github.com/berlindb/core/issues",
+                "source": "https://github.com/berlindb/core/tree/2.0.2"
+            },
+            "install-path": "../berlindb/core"
+        },
+        {
+            "name": "bshaffer/oauth2-server-httpfoundation-bridge",
+            "version": "v1.7.2",
+            "version_normalized": "1.7.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/bshaffer/oauth2-server-httpfoundation-bridge.git",
+                "reference": "7260e5716e9ced3cc0fed84d5412142821b59b1a"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/bshaffer/oauth2-server-httpfoundation-bridge/zipball/7260e5716e9ced3cc0fed84d5412142821b59b1a",
+                "reference": "7260e5716e9ced3cc0fed84d5412142821b59b1a",
                 "shasum": ""
             },
             "require": {
                 "bshaffer/oauth2-server-php": "^1.13",
                 "php": ">=8.0",
-                "symfony/http-foundation": "^5.4||^6.0||^7.0"
+                "symfony/http-foundation": "^5.4||^6.0||^7.0||^8.0"
             },
             "require-dev": {
                 "phpunit/phpunit": "^9.5"
             },
-            "time": "2024-01-20T14:40:00+00:00",
+            "time": "2026-05-11T15:37:58+00:00",
             "type": "library",
             "installation-source": "dist",
             "autoload": {
@@ -117,7 +151,7 @@
             ],
             "support": {
                 "issues": "https://github.com/bshaffer/oauth2-server-httpfoundation-bridge/issues",
-                "source": "https://github.com/bshaffer/oauth2-server-httpfoundation-bridge/tree/v1.7.1"
+                "source": "https://github.com/bshaffer/oauth2-server-httpfoundation-bridge/tree/v1.7.2"
             },
             "install-path": "../bshaffer/oauth2-server-httpfoundation-bridge"
         },
@@ -188,23 +222,23 @@
         },
         {
             "name": "symfony/deprecation-contracts",
-            "version": "v3.6.0",
-            "version_normalized": "3.6.0.0",
+            "version": "v3.7.0",
+            "version_normalized": "3.7.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/deprecation-contracts.git",
-                "reference": "63afe740e99a13ba87ec199bb07bbdee937a5b62"
+                "reference": "50f59d1f3ca46d41ac911f97a78626b6756af35b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/deprecation-contracts/zipball/63afe740e99a13ba87ec199bb07bbdee937a5b62",
-                "reference": "63afe740e99a13ba87ec199bb07bbdee937a5b62",
+                "url": "https://api.github.com/repos/symfony/deprecation-contracts/zipball/50f59d1f3ca46d41ac911f97a78626b6756af35b",
+                "reference": "50f59d1f3ca46d41ac911f97a78626b6756af35b",
                 "shasum": ""
             },
             "require": {
                 "php": ">=8.1"
             },
-            "time": "2024-09-25T14:21:43+00:00",
+            "time": "2026-04-13T15:52:40+00:00",
             "type": "library",
             "extra": {
                 "thanks": {
@@ -212,7 +246,7 @@
                     "name": "symfony/contracts"
                 },
                 "branch-alias": {
-                    "dev-main": "3.6-dev"
+                    "dev-main": "3.7-dev"
                 }
             },
             "installation-source": "dist",
@@ -238,7 +272,7 @@
             "description": "A generic function and convention to trigger deprecation notices",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.6.0"
+                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.7.0"
             },
             "funding": [
                 {
@@ -247,6 +281,10 @@
                 },
                 {
                     "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
                     "type": "github"
                 },
                 {
@@ -590,22 +628,24 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/WPBoilerplate/wpb-access-control.git",
-                "reference": "95165efe3feadb07cc3b85c8686343a10050a1bf"
+                "reference": "8876bb52625e1f814b7341395f12304ca4cd006b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/95165efe3feadb07cc3b85c8686343a10050a1bf",
-                "reference": "95165efe3feadb07cc3b85c8686343a10050a1bf",
+                "url": "https://api.github.com/repos/WPBoilerplate/wpb-access-control/zipball/8876bb52625e1f814b7341395f12304ca4cd006b",
+                "reference": "8876bb52625e1f814b7341395f12304ca4cd006b",
                 "shasum": ""
             },
             "require": {
+                "automattic/jetpack-autoloader": "^2",
+                "berlindb/core": "^2.0",
                 "php": ">=7.4"
             },
             "require-dev": {
                 "brain/monkey": "^2.6",
                 "phpunit/phpunit": "^9.6"
             },
-            "time": "2026-05-04T04:37:25+00:00",
+            "time": "2026-05-12T07:18:52+00:00",
             "default-branch": true,
             "type": "library",
             "installation-source": "dist",
@@ -618,6 +658,16 @@
                 "psr-4": {
                     "WPBoilerplate\\AccessControl\\Tests\\": "tests/"
                 }
+            },
+            "archive": {
+                "exclude": [
+                    "/.claude",
+                    "/.github",
+                    "/tests",
+                    "/vendor",
+                    "/AGENTS.md",
+                    "/phpunit.xml"
+                ]
             },
             "scripts": {
                 "test": [

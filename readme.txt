@@ -4,7 +4,7 @@ Tags: mcp, ai, copilot, vscode, claude
 Requires at least: 6.9
 Requires PHP: 8.0
 Tested up to: 7.0
-Stable tag: 0.0.2
+Stable tag: 0.0.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -180,6 +180,13 @@ No additional software is needed on the WordPress side. Your MCP clients (VS Cod
 4. Per-provider configuration file locations and top-level keys
 
 == Changelog ==
+
+= 0.0.3 =
+* Dependencies: update wpb-access-control to BerlinDB-backed version; add berlindb/core; update bshaffer/oauth2-server-httpfoundation-bridge and symfony/deprecation-contracts
+* Fixed: remove removed AccessControlTable references; fixes fatal error on plugin activation
+* Fixed: access-control table is now auto-bootstrapped by RuleQuery — no manual maybe_create_table() needed
+* Fixed: remove dead save_access_control POST handler; access-control saves now handled by library AJAX
+* Fixed: update v1.5.0 legacy migration to use RuleQuery::set_rule() instead of removed AccessControlTable::update()
 
 = 0.0.2 =
 * Security: sanitize and validate all $_GET/$_POST inputs with sanitize_key(), sanitize_text_field(), absint(), and wp_unslash()

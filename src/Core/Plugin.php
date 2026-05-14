@@ -14,7 +14,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use WPBoilerplate\AccessControl\Admin\AccessControlUI;
 use WPBoilerplate\AccessControl\AccessControlManager;
-use WPBoilerplate\AccessControl\AccessControlTable;
 use ACROSSAI_MCP_MANAGER\Admin\Settings;
 use ACROSSAI_MCP_MANAGER\Database\CliAuthLogTable;
 use ACROSSAI_MCP_MANAGER\Database\ConnectorAuditLogTable;
@@ -91,8 +90,6 @@ class Plugin {
 		$this->cli_controller  = new CliController();
 		$this->frontend_auth   = new FrontendAuth();
 		$this->claude_connectors = new ClaudeConnectors();
-		// Ensure the access control table exists before any provider logic runs.
-		AccessControlTable::maybe_create_table();
 		CliAuthLogTable::maybe_create_table();
 		ConnectorAuditLogTable::maybe_create_table();
 

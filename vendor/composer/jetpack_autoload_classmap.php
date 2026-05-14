@@ -83,11 +83,11 @@ return array(
 		'path'    => $vendorDir . '/bshaffer/oauth2-server-php/src/OAuth2/GrantType/UserCredentials.php'
 	),
 	'OAuth2\\HttpFoundationBridge\\Request' => array(
-		'version' => '1.7.1.0',
+		'version' => '1.7.2.0',
 		'path'    => $vendorDir . '/bshaffer/oauth2-server-httpfoundation-bridge/src/OAuth2/HttpFoundationBridge/Request.php'
 	),
 	'OAuth2\\HttpFoundationBridge\\Response' => array(
-		'version' => '1.7.1.0',
+		'version' => '1.7.2.0',
 		'path'    => $vendorDir . '/bshaffer/oauth2-server-httpfoundation-bridge/src/OAuth2/HttpFoundationBridge/Response.php'
 	),
 	'OAuth2\\OpenID\\Controller\\AuthorizeController' => array(

@@ -22,7 +22,9 @@
 		"source": "https://github.com/WPBoilerplate/wpb-access-control"
 	},
 	"require": {
-		"php": ">=7.4"
+		"php": ">=7.4",
+		"automattic/jetpack-autoloader": "^2",
+		"berlindb/core": "^2.0"
 	},
 	"require-dev": {
 		"brain/monkey": "^2.6",
@@ -41,12 +43,25 @@
 	"scripts": {
 		"test": "phpunit"
 	},
+	"archive": {
+		"exclude": [
+			"/.claude",
+			"/.github",
+			"/tests",
+			"/vendor",
+			"/AGENTS.md",
+			"/phpunit.xml"
+		]
+	},
 	"minimum-stability": "dev",
 	"prefer-stable": true,
 	"config": {
 		"platform": {
 			"php": "7.4"
 		},
-		"sort-packages": true
+		"sort-packages": true,
+		"allow-plugins": {
+			"automattic/jetpack-autoloader": true
+		}
 	}
 }

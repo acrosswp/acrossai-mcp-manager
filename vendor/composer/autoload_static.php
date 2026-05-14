@@ -23,6 +23,10 @@ class ComposerStaticInit78d47bad24c2e5d7b4e3841b5c8074c6
             'Symfony\\Polyfill\\Mbstring\\' => 26,
             'Symfony\\Component\\HttpFoundation\\' => 33,
         ),
+        'B' => 
+        array (
+            'BerlinDB\\' => 9,
+        ),
         'A' => 
         array (
             'Automattic\\Jetpack\\Autoloader\\' => 30,
@@ -50,6 +54,10 @@ class ComposerStaticInit78d47bad24c2e5d7b4e3841b5c8074c6
         'Symfony\\Component\\HttpFoundation\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/http-foundation',
+        ),
+        'BerlinDB\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/berlindb/core/src',
         ),
         'Automattic\\Jetpack\\Autoloader\\' => 
         array (

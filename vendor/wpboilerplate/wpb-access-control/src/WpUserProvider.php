@@ -7,15 +7,15 @@
  *
  * Stored format
  * -------------
- * User IDs are stored as strings in the options array:
- *   { "type": "wp_user", "options": ["1", "42", "7"] }
+ * User IDs are stored as plain strings per flat row in the database:
+ *   access_control_key = 'wp_user', access_control_value = '42'
  *
  * Why IDs and not usernames/emails
  * ---------------------------------
- * AccessControlTable::sanitize() runs sanitize_key() on every option value,
- * which strips @, dots, and other characters from email addresses. Storing the
- * integer user ID as a string ("42") is the only value that survives the
- * sanitization pipeline unchanged.
+ * RuleQuery::set_rule() runs sanitize_key() on every option value, which
+ * strips @, dots, and other characters from email addresses. Storing the
+ * integer user ID as a string ("42") is the only value that survives
+ * sanitization unchanged.
  *
  * Admin UI
  * --------

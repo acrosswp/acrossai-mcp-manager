@@ -12,7 +12,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use WPBoilerplate\AccessControl\AccessControlTable;
 use WPBoilerplate\AccessControl\Admin\AccessControlUI;
 use ACROSSAI_MCP_MANAGER\Database\MCPServerTable;
 use ACROSSAI_MCP_MANAGER\Admin\ConnectorAuditLogListTable;
@@ -77,7 +76,7 @@ class Settings {
 		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification
 
-		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_access_control', 'save_claude_connector' ), true ) ) {
+		if ( ! in_array( $action, array( 'toggle_status', 'delete', 'create', 'update', 'save_claude_connector' ), true ) ) {
 			return;
 		}
 
@@ -274,44 +273,6 @@ class Settings {
 						'action'  => 'edit',
 						'server'  => $server_id,
 						'tab'     => 'update-server',
-						'updated' => '1',
-					),
-					admin_url( 'admin.php' )
-				)
-			);
-			exit;
-		}
-
-		// ── save_access_control (POST) ────────────────────────────────────────────
-		if ( 'save_access_control' === $action && isset( $_SERVER['REQUEST_METHOD'] ) && 'post' === sanitize_key( wp_unslash( $_SERVER['REQUEST_METHOD'] ) ) ) {
-			$server_id = isset( $_GET['server'] ) ? absint( $_GET['server'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
-
-			check_admin_referer( 'acrossai_mcp_access_control_' . $server_id );
-
-			$server = $server_id ? MCPServerTable::get_by_id( $server_id ) : null;
-
-			if ( ! $server ) {
-				wp_die( esc_html__( 'Invalid server.', 'acrossai-mcp-manager' ) );
-			}
-
-			$ns    = ! empty( $server['server_route_namespace'] ) ? $server['server_route_namespace'] : 'mcp';
-			$route = ! empty( $server['server_route'] ) ? $server['server_route'] : $server['server_slug'];
-
-			$ac_config = AccessControlUI::extract_posted_config( array(
-				'ac_type'    => isset( $_POST['ac_type'] ) ? sanitize_key( wp_unslash( $_POST['ac_type'] ) ) : '', // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-				'ac_options' => isset( $_POST['ac_options'] ) && is_array( $_POST['ac_options'] )
-					? array_map( 'sanitize_key', wp_unslash( (array) $_POST['ac_options'] ) ) // phpcs:ignore WordPress.Security.ValidatedSanitizedInput
-					: array(),
-			) );
-			AccessControlTable::update( $ns, $route, $ac_config['key'], $ac_config['value'] );
-
-			wp_safe_redirect(
-				add_query_arg(
-					array(
-						'page'    => 'acrossai_mcp_manager',
-						'action'  => 'edit',
-						'server'  => $server_id,
-						'tab'     => 'access-control',
 						'updated' => '1',
 					),
 					admin_url( 'admin.php' )
