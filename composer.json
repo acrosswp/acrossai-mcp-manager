@@ -10,7 +10,7 @@
     }
   ],
   "require": {
-    "php": ">=8.0",
+    "php": ">=7.4",
     "automattic/jetpack-autoloader": "^2.0",
     "wordpress/mcp-adapter": ">=0.4.1",
     "wpboilerplate/wpb-access-control": "dev-main",
@@ -31,7 +31,10 @@
   "autoload": {
     "psr-4": {
       "ACROSSAI_MCP_MANAGER\\": "src/"
-    }
+    },
+    "files": [
+      "src/Core/polyfills.php"
+    ]
   },
   "minimum-stability": "dev",
   "prefer-stable": true,

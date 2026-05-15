@@ -1,0 +1,71 @@
+name: PHP Compatibility
+
+# Blocks merging to main when PHP syntax or compatibility issues are detected.
+# Runs on every pull request and every push to main/master.
+#
+# Two jobs:
+#   1. php-syntax-74  — direct PHP 7.4 syntax check (php -l) on all source files
+#   2. phpcompatibility — static analysis via PHPCompatibility PHPCS standard
+#                         covering the full 7.4 – 8.5 version range
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Job 1 — actual PHP 7.4 parser check
+  # ---------------------------------------------------------------------------
+  php-syntax-74:
+    name: PHP 7.4 Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+          tools: none
+
+      - name: Check syntax of all plugin source files
+        run: |
+          find src/ -name "*.php" -print0 | xargs -0 -n1 php -l
+          php -l acrossai-mcp-manager.php
+
+  # ---------------------------------------------------------------------------
+  # Job 2 — PHPCompatibility static analysis (7.4 – 8.5 range)
+  # ---------------------------------------------------------------------------
+  phpcompatibility:
+    name: PHPCompatibility 7.4 – 8.5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
+      - name: Install PHPCompatibility + PHPCS
+        run: |
+          composer require --dev \
+            squizlabs/php_codesniffer:"^3.9" \
+            phpcompatibility/php-compatibility:"^9.3" \
+            dealerdirect/phpcodesniffer-composer-installer:"^1.0" \
+            --no-interaction --no-progress
+
+      - name: Run PHPCompatibility check (7.4 – 8.5)
+        run: |
+          vendor/bin/phpcs \
+            --standard=PHPCompatibility \
+            --runtime-set testVersion 7.4-8.5 \
+            --extensions=php \
+            --ignore=vendor,node_modules,build \
+            src/ acrossai-mcp-manager.php

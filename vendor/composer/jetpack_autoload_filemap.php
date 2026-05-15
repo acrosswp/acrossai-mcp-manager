@@ -14,4 +14,8 @@ return array(
 		'version' => '1.37.0.0',
 		'path'    => $vendorDir . '/symfony/polyfill-mbstring/bootstrap.php'
 	),
+	'0f5c50deb50d9b292eddd80882bc9d96' => array(
+		'version' => 'dev-main',
+		'path'    => $baseDir . '/src/Core/polyfills.php'
+	),
 );
