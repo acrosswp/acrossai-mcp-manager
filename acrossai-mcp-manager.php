@@ -10,7 +10,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: acrossai-mcp-manager
  * Domain Path: /languages
- * Requires PHP: 8.0
+ * Requires PHP: 7.4
  * Requires WP: 6.9
  *
  * @package AcrossAI_MCP_Manager

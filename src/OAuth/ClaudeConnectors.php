@@ -14,8 +14,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 use ACROSSAI_MCP_MANAGER\Database\MCPServerTable;
 use ACROSSAI_MCP_MANAGER\Database\ConnectorAuditLogTable;
-use OAuth2\HttpFoundationBridge\Request as BridgeRequest;
-use OAuth2\HttpFoundationBridge\Response as BridgeResponse;
+use OAuth2\Request as BridgeRequest;
+use OAuth2\Response as BridgeResponse;
 
 /**
  * Hosts metadata, browser authorization, token exchange, and bearer auth.

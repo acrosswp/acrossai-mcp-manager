@@ -9,8 +9,6 @@ return array(
     'WP\\McpSchema\\' => array($vendorDir . '/wordpress/php-mcp-schema/src'),
     'WP\\MCP\\' => array($vendorDir . '/wordpress/mcp-adapter/includes'),
     'WPBoilerplate\\AccessControl\\' => array($vendorDir . '/wpboilerplate/wpb-access-control/src'),
-    'Symfony\\Polyfill\\Mbstring\\' => array($vendorDir . '/symfony/polyfill-mbstring'),
-    'Symfony\\Component\\HttpFoundation\\' => array($vendorDir . '/symfony/http-foundation'),
     'BerlinDB\\' => array($vendorDir . '/berlindb/core/src'),
     'Automattic\\Jetpack\\Autoloader\\' => array($vendorDir . '/automattic/jetpack-autoloader/src'),
     'ACROSSAI_MCP_MANAGER\\' => array($baseDir . '/src'),

@@ -7,8 +7,6 @@ namespace Composer\Autoload;
 class ComposerStaticInit78d47bad24c2e5d7b4e3841b5c8074c6
 {
     public static $files = array (
-        '6e3fae29631ef280660b3cdad06f25a8' => __DIR__ . '/..' . '/symfony/deprecation-contracts/function.php',
-        '0e6d7bf4a5811bfa5cf40c5ccd6fae6a' => __DIR__ . '/..' . '/symfony/polyfill-mbstring/bootstrap.php',
         '0f5c50deb50d9b292eddd80882bc9d96' => __DIR__ . '/../..' . '/src/Core/polyfills.php',
     );
 
@@ -18,11 +16,6 @@ class ComposerStaticInit78d47bad24c2e5d7b4e3841b5c8074c6
             'WP\\McpSchema\\' => 13,
             'WP\\MCP\\' => 7,
             'WPBoilerplate\\AccessControl\\' => 28,
-        ),
-        'S' => 
-        array (
-            'Symfony\\Polyfill\\Mbstring\\' => 26,
-            'Symfony\\Component\\HttpFoundation\\' => 33,
         ),
         'B' => 
         array (
@@ -48,14 +41,6 @@ class ComposerStaticInit78d47bad24c2e5d7b4e3841b5c8074c6
         array (
             0 => __DIR__ . '/..' . '/wpboilerplate/wpb-access-control/src',
         ),
-        'Symfony\\Polyfill\\Mbstring\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
-        ),
-        'Symfony\\Component\\HttpFoundation\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/symfony/http-foundation',
-        ),
         'BerlinDB\\' => 
         array (
             0 => __DIR__ . '/..' . '/berlindb/core/src',
@@ -73,10 +58,6 @@ class ComposerStaticInit78d47bad24c2e5d7b4e3841b5c8074c6
     public static $prefixesPsr0 = array (
         'O' => 
         array (
-            'OAuth2\\HttpFoundationBridge' => 
-            array (
-                0 => __DIR__ . '/..' . '/bshaffer/oauth2-server-httpfoundation-bridge/src',
-            ),
             'OAuth2' => 
             array (
                 0 => __DIR__ . '/..' . '/bshaffer/oauth2-server-php/src',

@@ -18,14 +18,6 @@ return array(
 		'version' => 'dev-main',
 		'path'    => array( $vendorDir . '/wpboilerplate/wpb-access-control/src' )
 	),
-	'Symfony\\Polyfill\\Mbstring\\' => array(
-		'version' => '1.37.0.0',
-		'path'    => array( $vendorDir . '/symfony/polyfill-mbstring' )
-	),
-	'Symfony\\Component\\HttpFoundation\\' => array(
-		'version' => '7.4.8.0',
-		'path'    => array( $vendorDir . '/symfony/http-foundation' )
-	),
 	'BerlinDB\\' => array(
 		'version' => '2.0.2.0',
 		'path'    => array( $vendorDir . '/berlindb/core/src' )

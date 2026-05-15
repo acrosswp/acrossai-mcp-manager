@@ -14,9 +14,7 @@
     "automattic/jetpack-autoloader": "^2.0",
     "wordpress/mcp-adapter": ">=0.4.1",
     "wpboilerplate/wpb-access-control": "dev-main",
-    "bshaffer/oauth2-server-php": "^1.14",
-    "bshaffer/oauth2-server-httpfoundation-bridge": "^1.7",
-    "symfony/http-foundation": "^7.0"
+    "bshaffer/oauth2-server-php": "^1.14"
   },
   "repositories": [
     {
