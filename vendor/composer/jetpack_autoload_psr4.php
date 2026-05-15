@@ -23,7 +23,7 @@ return array(
 		'path'    => array( $vendorDir . '/berlindb/core/src' )
 	),
 	'Automattic\\Jetpack\\Autoloader\\' => array(
-		'version' => '2.12.0',
+		'version' => '5.0.17',
 		'path'    => array( $vendorDir . '/automattic/jetpack-autoloader/src' )
 	),
 	'ACROSSAI_MCP_MANAGER\\' => array(

@@ -11,7 +11,7 @@
   ],
   "require": {
     "php": ">=7.4",
-    "automattic/jetpack-autoloader": "^2.0",
+    "automattic/jetpack-autoloader": "^5.0",
     "wordpress/mcp-adapter": ">=0.4.1",
     "wpboilerplate/wpb-access-control": "dev-main",
     "bshaffer/oauth2-server-php": "^1.14"

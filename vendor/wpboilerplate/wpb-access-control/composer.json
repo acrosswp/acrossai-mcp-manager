@@ -23,7 +23,7 @@
 	},
 	"require": {
 		"php": ">=7.4",
-		"automattic/jetpack-autoloader": "^2",
+		"automattic/jetpack-autoloader": "^5.0",
 		"berlindb/core": "^2.0"
 	},
 	"require-dev": {

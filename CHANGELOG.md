@@ -5,6 +5,12 @@
 ### Improved
 
 - Bundle access-control UI assets (`assets/access-control/css/admin.css` and `assets/access-control/js/admin.js`) directly in the plugin; `Settings::get_access_control_ui()` now points `set_assets_url()` at the plugin's own copy so the admin panel renders correctly regardless of whether the `wpboilerplate/wpb-access-control` vendor package ships those files
+- Upgrade `automattic/jetpack-autoloader` from `^2.0` to `^5.0` (v5.0.17)
+- Replace `bshaffer/oauth2-server-httpfoundation-bridge` and `symfony/http-foundation` (both required PHP ≥8.0/8.2) with native `OAuth2\Request` / `OAuth2\Response` from `bshaffer/oauth2-server-php`; plugin now installs cleanly on PHP 7.4
+- Add `src/Core/polyfills.php` — global function stubs for `str_contains`, `str_starts_with`, `str_ends_with`, `array_is_list` loaded via Composer `autoload.files`
+- Add `src/Core/Compat.php` — static helper class with PHP version range utilities covering PHP 7.4–8.5
+- Extend CI PHP lint matrix to include PHP 7.4 and 8.0
+- Add `.github/workflows/php-compat.yml` — blocking PR gate: PHP 7.4 syntax check + PHPCompatibility PHPCS scan over 7.4–8.5 range
 
 ## [0.0.3] - 2026-05-14
 

@@ -1,0 +1,33 @@
+name: Build release zip
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    build:
+        name: Build release zip
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '20'
+
+            - name: Build plugin
+              run: |
+                  npm install
+                  npm run build-production
+
+            - name: Generate zip
+              run: npm run plugin-zip
+
+            - name: Upload zip artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: acrossai-model-manager
+                  path: acrossai-model-manager.zip

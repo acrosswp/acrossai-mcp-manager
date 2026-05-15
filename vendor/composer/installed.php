@@ -3,7 +3,7 @@
         'name' => 'acrosswp/acrossai-mcp-manager',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '062e4e7b9789960a002bd83c6909435ea37130f6',
+        'reference' => 'c2bd11c47b150761991357e791cfdcfdc8de99d4',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,16 +13,16 @@
         'acrosswp/acrossai-mcp-manager' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '062e4e7b9789960a002bd83c6909435ea37130f6',
+            'reference' => 'c2bd11c47b150761991357e791cfdcfdc8de99d4',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
         'automattic/jetpack-autoloader' => array(
-            'pretty_version' => 'v2.12.0',
-            'version' => '2.12.0.0',
-            'reference' => '632b69cfc73ed5505f2b03165e7f68d414d0da12',
+            'pretty_version' => 'v5.0.17',
+            'version' => '5.0.17.0',
+            'reference' => '6933cc3d91d155ed6935d9c189077e7e1a8845bd',
             'type' => 'composer-plugin',
             'install_path' => __DIR__ . '/../automattic/jetpack-autoloader',
             'aliases' => array(),
@@ -67,7 +67,7 @@
         'wpboilerplate/wpb-access-control' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '8876bb52625e1f814b7341395f12304ca4cd006b',
+            'reference' => 'de2300ecf1a341365054bcbcc5a9747e1385dbe3',
             'type' => 'library',
             'install_path' => __DIR__ . '/../wpboilerplate/wpb-access-control',
             'aliases' => array(
