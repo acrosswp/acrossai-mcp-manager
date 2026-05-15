@@ -2178,8 +2178,7 @@ class Settings {
 	/**
 	 * Return a configured access-control UI instance for this plugin.
 	 *
-	 * Assets (CSS + JS) are bundled inside the plugin at assets/access-control/
-	 * so the UI works regardless of whether the vendor package includes them.
+	 * Assets (CSS + JS) are served from the vendor package's own assets folder.
 	 *
 	 * @since 1.6.0
 	 *
@@ -2188,7 +2187,7 @@ class Settings {
 	private function get_access_control_ui(): AccessControlUI {
 		$manager = \ACROSSAI_MCP_MANAGER\Core\Plugin::instance()->get_access_control_manager();
 		$ui      = new AccessControlUI( $manager );
-		$ui->set_assets_url( plugins_url( 'assets/access-control', ACROSSAI_MCP_MANAGER_FILE ) );
+		$ui->set_assets_url( plugins_url( 'vendor/wpboilerplate/wpb-access-control/assets', ACROSSAI_MCP_MANAGER_FILE ) );
 
 		return $ui;
 	}

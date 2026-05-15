@@ -334,8 +334,9 @@ Installed at `vendor/wpboilerplate/wpb-access-control/src/`. Namespace: `WPBoile
 ```
 AbstractProvider          — abstract base; every provider extends this
 WpRoleProvider            — built-in provider for WordPress user roles
+WpUserProvider            — built-in provider for specific WP users (AJAX search)
 AccessControlManager      — provider registry + user_has_access() decision engine
-AccessControlTable        — owns {prefix}wpb_access_control; CRUD for access rules
+RuleQuery                 — owns {prefix}wpb_access_control; CRUD for access rules
 ```
 
 The manager is instantiated in `Plugin::__construct()` with a single argument:
@@ -375,34 +376,42 @@ The filter fires on `init` at priority 5. Providers added after that point are i
 
 ### Access decision hierarchy
 
-1. If `AccessControlTable::get(namespace, route)` returns empty or `type = 'everyone'` → **allow**.
+1. If `RuleQuery::get_rule(namespace, route)` returns `key = ''` or `key = 'everyone'` → **allow**.
 2. If the requesting user has `manage_options` capability (administrator) → **allow**.
 3. If the user is not authenticated → **deny** with HTTP 401.
-4. If no provider is registered for the configured `type` → **deny** with HTTP 403.
+4. If no provider is registered for the configured `key` → **deny** with HTTP 403.
 5. Call `provider->user_has_access( $user_id, $options )` → allow or **deny** with HTTP 403.
 
 ### Storage format
 
-Rules are stored in `{prefix}wpb_access_control` with `namespace = server_route_namespace` and `key = server_route`.
+Rules are stored in `{prefix}wpb_access_control` as multiple rows (one per option value) with `namespace = server_route_namespace` and `key = server_route`.
 
-```json
-{ "type": "wp_role", "options": ["editor", "author"] }
+`RuleQuery::get_rule( $ns, $key )` returns:
+```php
+['key' => 'wp_role', 'value' => ['editor', 'author']]
+// or when no rule is set:
+['key' => '', 'value' => []]
 ```
 
-- `type` — provider ID. `'everyone'` or `''` means no restriction.
-- `options` — array of option IDs from `provider->get_options()`.
+`RuleQuery::set_rule( $ns, $key, $ac_key, $ac_options )` writes the rule (sanitized internally).
+
+- `key` (a.k.a. `access_control_key`) — provider ID. `'everyone'` or `''` means no restriction.
+- `value` (a.k.a. `access_control_value`) — array of option IDs from `provider->get_options()`.
 - Empty string `''` is the default; the manager treats it as `type = 'everyone'`.
 
-Always write through `AccessControlTable::update( $ns, $route, $json )`. Never write raw `$wpdb` — it bypasses the object cache.
+Always write through `RuleQuery::set_rule()`. Never write raw `$wpdb` — BerlinDB manages its own object cache.
 
 ### Admin UI
 
 **Tab slug**: `access-control` — visible on all server types (plugin and database).
 
+- Assets (CSS + JS) are loaded from the **vendor package's own** `assets/` folder via `AccessControlUI::set_assets_url( plugins_url('vendor/wpboilerplate/wpb-access-control/assets', PLUGIN_FILE) )`.
+- `AccessControlUI::bootstrap()` is called once in `Plugin::__construct()` to register the AJAX handlers.
+- `AccessControlUI::enqueue_assets()` is called from `Settings::enqueue_assets()` to load styles + scripts.
 - Dropdown (`ac_type`) populated from `AccessControlManager::get_providers()`.
 - Per-provider fieldset with checkboxes shown/hidden by inline JS as the dropdown changes.
-- Submits to `?action=save_access_control&server={id}` (POST, nonce: `acrossai_mcp_access_control_{id}`).
-- On success, redirects back to the `access-control` tab with `?updated=1`.
+- **Saves via AJAX** to `admin-ajax.php` action `wpb_access_control_save` (no page reload).
+- The `wpb_access_control_can_save` filter defaults to `true` — no additional authorization needed for this plugin.
 
 ### Firing the `acrossai_mcp_access_denied` action
 
@@ -454,8 +463,9 @@ Registered clients: `openai`, `claude`, `vscode`, `codex`, `cursor`, `custom`.
 - **Server key format** (`{sitename}-{serverslug}`) must stay in sync across `ApplicationPasswords`, `Settings::render_wpcli_tab()`, and the npm CLI. Changing it in one place without updating the others will produce mismatched config keys.
 - **Auth codes are single-use**. `auth_exchange` deletes both the auth-code and session-token transients on success. Do not attempt a second exchange with the same code.
 - **`mcp_url` in `/servers` response** is what the CLI uses as `WP_API_URL`. It must always be a full REST URL pointing to `mcp/mcp-adapter-default-server`. Do not change it to the site base URL.
-- **Access control defaults to "everyone"**. A missing or empty value in `AccessControlTable` is treated as `type='everyone'` by `AccessControlManager`. Pre-existing servers are never accidentally locked out.
+- **Access control defaults to "everyone"**. A missing or empty rule in `RuleQuery` is treated as `key='everyone'` by `AccessControlManager`. Pre-existing servers are never accidentally locked out.
 - **Administrators always bypass access control**. The `manage_options` capability check in `AccessControlManager::user_has_access()` is unconditional and must not be removed.
 - **Access control providers are loaded on `init` priority 5** (or immediately if init already fired). Providers registered after that point will be silently ignored. Third-party code must hook at priority 4 or earlier. The filter tag is `'acrossai_mcp_access_control_providers'` — NOT the library default `'wpb_access_control_providers'`.
-- **Access rules are stored in the library table**, not `wp_acrossai_mcp_servers`. Use `AccessControlTable::update( $ns, $route, $json )` to write and `AccessControlTable::get( $ns, $route )` to read. Never write the `access_control` column directly on the server table — it was removed in v1.5.0.
+- **Access rules are stored in the library table** (`{prefix}wpb_access_control`), not `wp_acrossai_mcp_servers`. Use `RuleQuery::set_rule( $ns, $route, $key, $options )` to write and `RuleQuery::get_rule( $ns, $route )` to read. Never write the `access_control` column directly on the server table — it was removed in v1.5.0.
+- **Access control assets come from the vendor package** at `vendor/wpboilerplate/wpb-access-control/assets/`. The plugin sets this path via `AccessControlUI::set_assets_url()`. Do not create or maintain plugin-bundled copies of these assets.
 - **REST enforcement lives in `Plugin::enforce_mcp_access_control()`**, not the library. The library never adds `rest_pre_dispatch` hooks. Do not add REST enforcement to the library.
